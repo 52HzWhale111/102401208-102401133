@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>发布成功｜拾光校园</title>
+<link rel="stylesheet" href="shared/app.css">
+<style>
+  .done-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 40px 0 8px;
+    text-align: center;
+  }
+  .done-icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 76px; height: 76px;
+    font-size: 38px;
+    background: var(--green-100);
+    border-radius: 50%;
+    box-shadow: 0 8px 24px rgba(5, 150, 105, .18);
+  }
+  .done-title { margin: 18px 0 6px; font-size: 22px; font-weight: 700; }
+  .done-desc  { margin: 0; font-size: 13px; line-height: 20px; color: var(--sub); }
+
+  .summary { margin: 26px 0 0; text-align: left; }
+  .summary .item-card { cursor: default; }
+  .summary .item-card:hover { border-color: var(--border); }
+
+  .done-actions {
+    display: grid; gap: 10px;
+    width: 100%;
+    margin: 22px 0 0;
+  }
+
+  .missing {
+    margin: 40px 0;
+    padding: 24px;
+    text-align: center;
+    color: var(--sub);
+  }
+</style>
+</head>
+
+<body>
+<div class="app" data-shell="back" data-tab="none" data-title="发布结果">
+
+  <div data-layout="header"></div>
+
+  <main class="page">
+
+    <div class="done-wrap">
+      <div class="done-icon" aria-hidden="true">🎉</div>
+      <h2 class="done-title">发布成功！</h2>
+      <p class="done-desc" id="doneDesc">你的信息已经出现在「广场」和「最新发布」里了。</p>
+    </div>
+
+    <div class="summary" id="summary"></div>
+
+    <div class="done-actions" id="actions">
+      <a class="btn btn-secondary btn-block" href="mine.html">查看我的发布</a>
+      <a class="btn btn-primary btn-block" href="index.html">返回首页</a>
+    </div>
+
+  </main>
+</div>
+
+<script src="js/core.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/store.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/card.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  LF.layout.init();
+
+  var id = new URLSearchParams(location.search).get('id');
+  var item = id ? LF.store.get(id) : null;
+
+  var summary = document.getElementById('summary');
+
+  if (!item) {
+    // 直接打开这个页面、或换个浏览器（存储不通）时走这里，别白屏
+    document.getElementById('doneDesc').textContent =
+      '没有找到刚发布的那条信息，可能是换了浏览器打开的。';
+    summary.innerHTML = '<p class="missing">信息详情请到「广场」或「我的」查看。</p>';
+    return;
+  }
+
+  var kindText = LF.kindLabel(item);
+  var desc = document.getElementById('doneDesc');
+  desc.textContent = '你发布的' + kindText + '信息已提交，其他同学现在可以搜到它了。'
+                   + (item.kind === 'found'
+                        ? '等失主联系你、确认无误后，记得去「我的」把它标记为已归还。'
+                        : '找到东西后，记得去「我的」把它标记为已找到。');
+
+  // 摘要卡用和列表一样的卡片，保证视觉一致；href:null 让它不可点（这里点进去没意义）
+  summary.appendChild(LF.card.render(item, { href: null }));
+})();
+</script>
+</body>
+</html>
