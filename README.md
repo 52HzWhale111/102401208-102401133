@@ -83,7 +83,8 @@ npm test
 │   └─ core.test.js        Mocha 单元测试，34 个用例
 │
 ├─ docs/
-│   └─ 交接文档-给队友.md    结对分工说明与接口契约
+│   ├─ 交接文档-给队友.md    结对分工说明与接口契约
+│   └─ 原型参照.html         第一次作业产出的 16 张原型画板，开发时对照用
 │
 ├─ package.json            npm test 配置（唯一依赖：mocha）
 └─ README.md               本文件
