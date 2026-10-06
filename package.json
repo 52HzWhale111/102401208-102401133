@@ -1,0 +1,15 @@
+{
+  "name": "shiguang-campus",
+  "version": "1.0.0",
+  "private": true,
+  "description": "拾光校园 · 校园失物招领（软件工程结对作业：发布—浏览/搜索—详情—联系—状态更新）",
+  "scripts": {
+    "test": "mocha"
+  },
+  "mocha": {
+    "spec": "test/**/*.test.js"
+  },
+  "devDependencies": {
+    "mocha": "^12.0.3"
+  }
+}

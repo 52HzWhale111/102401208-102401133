@@ -1,0 +1,15 @@
+# 依赖目录：体积大且可由 npm install 还原，不入库
+node_modules/
+
+# 日志与调试
+npm-debug.log*
+*.log
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 临时截图（自检用，不属于交付物）
+shots/
