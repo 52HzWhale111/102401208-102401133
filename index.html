@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>拾光校园 · 首页｜校园失物招领</title>
+<meta name="description" content="拾光校园 - 校园失物招领小程序。先找找，再发布。">
+<link rel="stylesheet" href="shared/app.css">
+<style>
+  /* 只属于首页的样式 */
+
+  /* ---- Banner ---- */
+  .banner{
+    position:relative; overflow:hidden;
+    margin-top:14px;
+    height:175px;
+    padding:22px 20px 0;
+    border-radius:24px;
+    /* .fig 里渐变是「左下浅 → 右上深」 */
+    background:linear-gradient(27deg,#FEF3C7 0%,#FDECB0 100%);
+    border:1px solid var(--yellow-200);
+    box-shadow:var(--shadow-soft);
+  }
+  .banner-tag{
+    display:inline-block; vertical-align:top;
+    padding:4px 10px;
+    font-size:12px; font-weight:600; color:var(--amber-800);
+    background:rgba(255,255,255,.8);
+    border-radius:999px;
+  }
+  .banner-title{
+    position:relative; z-index:1;
+    margin:3px 0 0;
+    font-size:24px; line-height:30px; font-weight:600;
+  }
+  .banner-title em{display:block; font-style:normal; color:var(--amber-800)}
+  .banner-desc{
+    position:relative; z-index:1;
+    width:220px; margin:11px 0 0;
+    font-size:12px; line-height:16px; color:var(--sub);
+  }
+  /* .fig 里 🐶🐾🐱 是竖排三行，文本框超出 banner 的部分被 overflow:hidden 裁掉 */
+  .banner-emoji{
+    position:absolute; left:246px; top:-20px;
+    width:80px;
+    font-size:72px; line-height:72px;
+    user-select:none; pointer-events:none;
+  }
+  .banner-emoji span{display:block}
+
+  /* ---- 快捷搜索（点一下去搜索页） ---- */
+  .searchbar{position:relative; display:block; margin-top:18px; cursor:pointer}
+  .searchbar .fake-input{
+    display:flex; align-items:center;
+    height:51px; padding:0 16px 0 46px;
+    font-size:14px; color:var(--faint);
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:16px;
+    box-shadow:var(--shadow-card);
+    transition:border-color .15s;
+  }
+  .searchbar:hover .fake-input{border-color:var(--yellow)}
+  .searchbar .icon{
+    position:absolute; left:16px; top:50%; transform:translateY(-50%);
+    width:20px; height:20px; color:var(--sub); pointer-events:none;
+  }
+
+  /* ---- 双核心入口 ---- */
+  .entries{display:grid; grid-template-columns:1fr 1fr; gap:17px; margin-top:26px}
+  .entry{
+    position:relative; overflow:hidden; display:block;
+    min-height:161px;
+    padding:16px;
+    border-radius:24px;
+    text-align:left;
+    box-shadow:var(--shadow-card);
+    transition:box-shadow .2s, transform .2s;
+  }
+  .entry:active{transform:scale(.985)}
+  .entry:hover{box-shadow:var(--shadow-soft)}
+  .entry-icon{
+    width:40px; height:40px; margin-bottom:16px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; font-weight:600;
+    background:rgba(255,255,255,.8);
+    border-radius:16px;
+    box-shadow:0 1px 2px rgba(0,0,0,.05);
+  }
+  .entry-kicker{display:block; font-size:12px; font-weight:600; line-height:16px}
+  .entry-title{display:block; margin-top:6px; font-size:18px; font-weight:600; line-height:28px}
+  .entry-desc{display:block; margin-top:5px; font-size:11px; line-height:16.5px}
+  .entry-emoji{
+    position:absolute; right:-8px; bottom:-6px;
+    font-size:48px; line-height:1;
+    opacity:.15; user-select:none; pointer-events:none;
+    transition:opacity .2s;
+  }
+  .entry:hover .entry-emoji{opacity:.25}
+
+  .entry.is-find{background:var(--yellow-100); border:1px solid var(--yellow-300); color:var(--amber-800)}
+  .entry.is-find .entry-icon{color:#B45309}
+  .entry.is-find .entry-title{color:var(--amber-950)}
+
+  .entry.is-claim{background:var(--blue-100); border:1px solid var(--blue-300); color:#1E40AF}
+  .entry.is-claim .entry-icon{color:var(--blue-700)}
+  .entry.is-claim .entry-title{color:var(--blue-900)}
+
+  @media (max-width:400px){
+    .banner{padding-left:16px; padding-right:16px}
+    .banner-emoji{font-size:60px; line-height:60px}
+    .entries{gap:12px}
+    .entry{padding:14px}
+  }
+</style>
+</head>
+
+<body>
+<div class="app" data-shell="brand" data-tab="home">
+
+  <div data-layout="header"></div>
+
+  <main class="page">
+
+    <section class="banner">
+      <span class="banner-tag">🐾 温暖校园失物互助</span>
+      <h2 class="banner-title">
+        东西找不到了？
+        <em>先找找，再发布！</em>
+      </h2>
+      <p class="banner-desc">在这里，每一件丢失的小物都有机会重回主人身边。</p>
+      <div class="banner-emoji" aria-hidden="true"><span>🐶</span><span>🐾</span><span>🐱</span></div>
+    </section>
+
+    <!-- 快捷搜索：整块可点，进搜索页 -->
+    <a class="searchbar" href="search.html" aria-label="搜索失物招领信息">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/>
+      </svg>
+      <span class="fake-input">搜索丢失物品、地点（如：图书馆 蓝牙耳机）</span>
+    </a>
+
+    <!-- 双核心入口：丢东西的先看招领，捡到东西的先看寻物 -->
+    <div class="entries">
+      <a class="entry is-find" href="square.html?kind=found">
+        <span class="entry-icon" aria-hidden="true">🔍</span>
+        <span class="entry-kicker">丢失了物品</span>
+        <strong class="entry-title">我要寻物</strong>
+        <span class="entry-desc">先看大家捡到了什么 →</span>
+        <span class="entry-emoji" aria-hidden="true">🐕</span>
+      </a>
+
+      <a class="entry is-claim" href="square.html?kind=lost">
+        <span class="entry-icon" aria-hidden="true">🎁</span>
+        <span class="entry-kicker">拾到了物品</span>
+        <strong class="entry-title">我要招领</strong>
+        <span class="entry-desc">先看谁在焦急寻找 →</span>
+        <span class="entry-emoji" aria-hidden="true">🐩</span>
+      </a>
+    </div>
+
+    <div class="section-head">
+      <h3 class="section-title"><span aria-hidden="true">✨</span>最新发布</h3>
+      <a class="section-more" href="square.html">查看全部 &gt;</a>
+    </div>
+    <div class="item-list" id="itemList"></div>
+
+  </main>
+
+  <div data-layout="tabbar"></div>
+</div>
+
+<script src="js/core.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/store.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/card.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var HOME_LIMIT = 6;   // 首页「最新发布」只露 6 条，多的去广场看
+
+  LF.layout.init();
+
+  var newest = LF.sortByTime(LF.store.all(), 'desc').slice(0, HOME_LIMIT);
+  LF.card.renderList(document.getElementById('itemList'), newest);
+
+  // 存储不可用时（file:// 下的隐私设置、无痕模式）提醒一句，免得用户以为发布没成功
+  if (!LF.store.persistent) {
+    console.warn('[拾光校园] 浏览器禁用了本地存储，本次发布的信息刷新后会消失。');
+  }
+})();
+</script>
+</body>
+</html>
