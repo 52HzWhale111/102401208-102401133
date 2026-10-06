@@ -1,0 +1,552 @@
+/* ============================================================================
+   拾光校园 · 公共样式
+   ----------------------------------------------------------------------------
+   这里放三样东西，顺序也是从下往上：
+     1. 设计令牌（:root 变量）—— 配色来自失物招领小程序.fig，别随手改
+     2. 页面外壳（.app / 顶栏 / 底部 TabBar）
+     3. 可复用组件（卡片、标签、按钮、表单、弹层、空状态）
+   只属于某一个页面的样式，写在那个 html 自己的 <style> 里，不要往这儿塞。
+   ========================================================================== */
+
+:root {
+  /* 底色与容器 */
+  --page:        #F7F5F0;   /* 手机外部底色 */
+  --surface:     #FFFDF9;   /* 温暖米白背景（品牌主背景） */
+  --card:        #FFFFFF;   /* 卡片纯白 */
+  --border:      #F0EAD6;   /* 柔和边框 */
+  --line:        #F1F5F9;   /* 卡片内分隔线 */
+  --field:       #F8F6F1;   /* 表单输入框底色 */
+
+  /* 品牌色：寻物暖黄 / 招领天空蓝 */
+  --yellow:      #FFC837;
+  --yellow-100:  #FEF3C7;
+  --yellow-200:  #FDE68A;
+  --yellow-300:  #FCD34D;
+  --amber-800:   #92400E;
+  --amber-950:   #451A03;
+
+  --blue:        #4A90E2;
+  --blue-100:    #DBEAFE;
+  --blue-300:    #93C5FD;
+  --blue-600:    #2563EB;
+  --blue-700:    #1D4ED8;
+  --blue-900:    #172554;
+
+  /* 文字 */
+  --text:        #2C2C2C;
+  --sub:         #8C8C8C;
+  --faint:       #B4B4B4;
+
+  /* 语义色 */
+  --green:       #059669;   /* 寻找失主中 */
+  --green-100:   #ECFDF5;
+  --orange:      #EA580C;   /* 焦急寻找中 */
+  --orange-100:  #FFF7ED;
+  --red:         #DC2626;
+  --red-50:      #FEF2F2;
+  --red-200:     #FECACA;
+
+  --shadow-soft: 0 8px 24px rgba(255, 200, 55, .12);
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, .04);
+  --shadow-pop:  0 12px 40px rgba(0, 0, 0, .16);
+}
+
+/* ------------------------------------------------------------------ 基础 */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--page);
+  color: var(--text);
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB",
+               system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 弹层打开时锁住背后的滚动 */
+body.is-locked { overflow: hidden; }
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ------------------------------------------------------------ 手机视口 */
+
+.app {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  box-shadow: 0 0 40px rgba(0, 0, 0, .05);
+}
+
+.page { flex: 1; padding: 0 16px 28px; }
+
+/* ---------------------------------------------------------------- 顶栏 */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 71px;
+  padding: 2px 20px 0;
+  background: rgba(255, 253, 249, .9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(240, 234, 214, .5);
+}
+
+/* 子页面顶栏：← 返回 + 标题 */
+.app-header.is-slim {
+  height: 56px;
+  padding: 0 12px;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand-text { display: flex; flex-direction: column; gap: 3px; }
+.brand-avatar { display: block; width: 40px; height: 40px; flex: none; }
+.brand-name { margin: 0; font-size: 18px; font-weight: 600; line-height: 20px; letter-spacing: .02em; }
+.brand-slogan { font-size: 10px; font-weight: 600; line-height: 12px; color: var(--sub); }
+
+.page-title {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.header-spacer { width: 36px; flex: none; }
+
+.menu-btn {
+  display: flex; align-items: center; gap: 8px;
+  height: 35px; padding: 0 15px;
+  font-size: 14px; font-weight: 600;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+  transition: background .15s, transform .15s;
+}
+.menu-btn svg { color: var(--amber-800); }
+.menu-btn:hover { background: #FAFAF9; }
+.menu-btn:active { transform: scale(.95); }
+
+.icon-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; flex: none;
+  border-radius: 50%;
+  color: var(--text);
+  font-size: 16px;
+  transition: background .15s, transform .15s;
+}
+.icon-btn:hover { background: rgba(0, 0, 0, .05); }
+.icon-btn:active { transform: scale(.92); }
+
+/* ------------------------------------------------------------ 底部 TabBar */
+
+.tabbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: end;
+  height: 63px;
+  padding: 0 8px 11px;
+  background: #FFFFFF;
+  border-top: 1px solid var(--border);
+}
+
+.tab {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding-top: 12px;
+  font-size: 10px; font-weight: 600; color: var(--sub);
+  transition: color .15s, transform .15s;
+}
+.tab:active { transform: scale(.94); }
+.tab svg { width: 20px; height: 20px; }
+.tab.is-active { color: var(--yellow); }
+
+/* 「＋」的占位格。按钮本身是绝对定位的，不占 grid 格位，
+   没有它的话后面两个标签会前移，「广场」被顶到第 5 格之外看不见。 */
+.tab-slot { display: block; }
+
+.fab {
+  position: absolute;
+  left: 50%; bottom: 10px;
+  transform: translateX(-50%);
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  color: #2C2C2C;
+  background: var(--yellow);
+  border: 1px solid var(--surface);
+  border-radius: 50%;
+  box-shadow: 0 8px 20px rgba(255, 200, 55, .45);
+  transition: transform .15s;
+}
+.fab:active { transform: translateX(-50%) scale(.93); }
+.fab svg { width: 24px; height: 24px; }
+
+/* ---------------------------------------------------------------- 卡片 */
+
+/* 单列横向卡片（首页「最新发布」、搜索结果、我的） */
+.item-list { display: flex; flex-direction: column; gap: 14px; }
+
+.item-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: border-color .15s, transform .15s;
+}
+.item-card:active { transform: scale(.99); }
+.item-card[data-kind="found"]:hover { border-color: rgba(74, 144, 226, .5); }
+.item-card[data-kind="lost"]:hover  { border-color: rgba(255, 200, 55, .55); }
+
+.thumb {
+  position: relative;
+  flex: none;
+  width: 96px; height: 96px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #EEF2F7;
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.badge {
+  position: absolute; top: 4px; left: 4px;
+  padding: 2px 6px;
+  font-size: 10px; font-weight: 600; line-height: 14px;
+  border-radius: 6px;
+}
+.badge.is-found { background: var(--blue); color: #fff; }
+.badge.is-lost  { background: var(--yellow); color: var(--text); }
+
+.item-body {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 1px 0;
+}
+.item-title {
+  margin: 0;
+  font-size: 14px; font-weight: 600; line-height: 20px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.item-place {
+  display: flex; align-items: center; gap: 4px;
+  margin: 6px 0 0;
+  font-size: 12px; line-height: 16px; color: var(--sub);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.item-place svg { width: 12px; height: 12px; flex: none; }
+
+.item-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 11px; color: var(--sub);
+}
+.item-foot .time { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 双列网格卡片（广场、搜索结果） */
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.item-card.is-stack { flex-direction: column; gap: 0; padding: 0; overflow: hidden; }
+.item-card.is-stack .thumb { width: 100%; height: 118px; border-radius: 0; }
+.item-card.is-stack .item-body { padding: 10px 12px 12px; gap: 6px; }
+.item-card.is-stack .item-title { white-space: normal; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.item-card.is-stack .item-foot { margin-top: 4px; padding-top: 8px; }
+
+/* ---------------------------------------------------------------- 标签 */
+
+.pill {
+  flex: none;
+  padding: 2px 8px;
+  font-size: 11px; font-weight: 600; line-height: 16px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pill.is-green  { background: var(--green-100);  color: var(--green); }
+.pill.is-orange { background: var(--orange-100); color: var(--orange); }
+.pill.is-blue   { background: #EFF6FF;           color: var(--blue-700); }
+.pill.is-gray   { background: #F3F4F6;           color: var(--sub); }
+
+/* ---------------------------------------------------------------- 按钮 */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 46px; padding: 0 20px;
+  font-size: 15px; font-weight: 600;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  transition: transform .15s, filter .15s, background .15s;
+}
+.btn:active { transform: scale(.98); }
+.btn-block { display: flex; width: 100%; }
+
+/* 小号按钮：卡片内联的操作，比如「我的」页每张卡上的「标记为已找到」。
+   标准尺寸 46px 放进卡片里会太占地方。 */
+.btn-sm { height: 34px; padding: 0 14px; font-size: 13px; border-radius: 10px; }
+
+.btn-primary   { background: var(--yellow); color: #2C2C2C; box-shadow: 0 6px 18px rgba(255, 200, 55, .35); }
+.btn-primary:hover { filter: brightness(1.04); }
+.btn-blue      { background: var(--blue); color: #fff; box-shadow: 0 6px 18px rgba(74, 144, 226, .35); }
+.btn-secondary { background: var(--card); color: var(--text); border-color: var(--border); }
+.btn-ghost     { background: transparent; color: var(--sub); }
+.btn-outline   { background: transparent; color: var(--orange); border-color: var(--orange); }
+.btn:disabled, .btn[aria-disabled="true"] {
+  background: #F3F4F6; color: var(--faint); box-shadow: none; cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------- 表单 */
+
+.form-group { margin-bottom: 18px; }
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px; font-weight: 600; color: var(--text);
+}
+.form-label .req  { color: var(--red); margin-left: 2px; }
+.form-label .opt  { margin-left: 6px; font-size: 11px; font-weight: 400; color: var(--faint); }
+
+.form-input,
+.form-textarea,
+.form-select {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--field);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  outline: none;
+  transition: border-color .15s, background .15s;
+}
+.form-input::placeholder,
+.form-textarea::placeholder { color: var(--faint); }
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus { background: var(--card); border-color: var(--yellow); }
+
+.form-textarea { min-height: 96px; resize: vertical; line-height: 1.6; }
+
+/* 出错时输入框标红，下方的 .form-error 显示原因 */
+.form-input.is-invalid,
+.form-textarea.is-invalid,
+.form-select.is-invalid { border-color: var(--red); background: var(--red-50); }
+
+.form-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--red);
+}
+.form-error:empty { display: none; }
+
+.form-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--faint);
+}
+.form-counter { display: flex; justify-content: flex-end; margin-top: 6px;
+  font-size: 11px; color: var(--faint); }
+.form-counter.is-over { color: var(--red); }
+
+/* 选项 chip（物品类别、筛选条件） */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 7px 14px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--field);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.chip:hover { border-color: var(--yellow); }
+.chip.is-active {
+  background: #2C2C2C;
+  color: #fff;
+  border-color: #2C2C2C;
+}
+
+/* 分段控件（发布寻物 / 发布招领） */
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  background: var(--field);
+  border-radius: 14px;
+}
+.segmented .seg {
+  padding: 9px 0;
+  font-size: 14px; font-weight: 600;
+  text-align: center;
+  color: var(--sub);
+  border-radius: 11px;
+  transition: background .15s, color .15s, box-shadow .15s;
+}
+.segmented .seg.is-active { background: var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, .08); }
+.segmented .seg.is-active[data-kind="lost"]  { color: var(--amber-800); }
+.segmented .seg.is-active[data-kind="found"] { color: var(--blue-700); }
+
+/* ---------------------------------------------------------------- 弹层 */
+
+.sheet { position: fixed; inset: 0; z-index: 90; }
+.sheet[hidden] { display: none; }
+
+.sheet-mask {
+  position: absolute; inset: 0;
+  background: rgba(0, 0, 0, .38);
+  animation: sheet-fade .18s ease-out;
+}
+
+.sheet-panel {
+  position: absolute;
+  left: 50%; bottom: 0;
+  width: 100%; max-width: 430px;
+  transform: translateX(-50%);
+  padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface);
+  border-radius: 22px 22px 0 0;
+  box-shadow: var(--shadow-pop);
+  animation: sheet-rise .22s ease-out;
+}
+
+.sheet-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.sheet-title { margin: 0; font-size: 16px; font-weight: 600; }
+
+.sheet-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.choice {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 18px 12px;
+  border-radius: 18px;
+  text-align: center;
+  transition: transform .15s, box-shadow .15s;
+}
+.choice:active { transform: scale(.97); }
+.choice-icon { font-size: 30px; line-height: 1; }
+.choice strong { font-size: 15px; font-weight: 600; }
+.choice-desc { font-size: 11px; line-height: 15px; opacity: .8; }
+
+.choice.is-find  { background: var(--yellow-100); border: 1px solid var(--yellow-300); color: var(--amber-800); }
+.choice.is-claim { background: var(--blue-100);   border: 1px solid var(--blue-300);   color: var(--blue-900); }
+
+@keyframes sheet-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes sheet-rise { from { transform: translate(-50%, 100%) } to { transform: translate(-50%, 0) } }
+
+/* ---------------------------------------------------------------- 轻提示 */
+
+.toast {
+  position: fixed;
+  left: 50%; bottom: 88px;
+  z-index: 120;
+  transform: translate(-50%, 12px);
+  padding: 9px 18px;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(44, 44, 44, .92);
+  border-radius: 999px;
+  box-shadow: var(--shadow-pop);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s, transform .2s;
+}
+.toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ------------------------------------------------------------ 通用容器 */
+
+.card {
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.section-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin: 24px 0 11px;
+}
+.section-title {
+  margin: 0;
+  display: flex; align-items: center; gap: 4px;
+  font-size: 16px; font-weight: 600; color: var(--amber-800);
+}
+.section-more { font-size: 12px; color: var(--sub); }
+.section-more:hover { color: var(--text); }
+
+/* 空状态 / 加载失败 等整页提示 */
+.state-page {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px;
+  min-height: 60vh;
+  padding: 24px;
+  text-align: center;
+}
+.state-icon { font-size: 56px; line-height: 1; }
+.state-title { margin: 6px 0 0; font-size: 18px; font-weight: 600; }
+.state-desc { margin: 0; font-size: 13px; line-height: 20px; color: var(--sub); }
+.state-actions { display: flex; gap: 10px; margin-top: 12px; }
+
+/* 统计格（我的页） */
+.stat-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 14px 0 4px;
+}
+.stat {
+  padding: 12px 8px;
+  text-align: center;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.stat-num { display: block; font-size: 20px; font-weight: 700; color: var(--amber-800); }
+.stat-label { display: block; margin-top: 2px; font-size: 11px; color: var(--sub); }
+
+/* ------------------------------------------------------------ 响应式 */
+
+@media (max-width: 400px) {
+  .page { padding-left: 12px; padding-right: 12px; }
+  .item-grid { gap: 10px; }
+  .thumb { width: 84px; height: 84px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
