@@ -72,6 +72,50 @@
   .guide-text  { margin: 0; font-size: 12px; line-height: 19.5px; }
   .guide-text b { font-weight: 700; }
 
+  /* ---- 搜索框 ----
+     原型 02 / 03 在横幅和卡片之间还有一个搜索框，它只在当前这一屏的列表里过滤，
+     不跳搜索页（要按类别 / 状态精细筛、或者搜全站的，走搜索页）。
+     样式和 search.html 那个保持一致，两个页面看起来才是同一个东西。 */
+  .search-field { position: relative; margin-top: 14px; }
+
+  .search-field .form-input {
+    height: 48px;
+    padding: 0 46px 0 42px;      /* 左侧留给放大镜，右侧留给清空按钮 */
+    background: var(--card);
+    border-color: var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-card);
+  }
+  /* app.css 的 .form-input:focus 和上面这条优先级相同，靠后加载才生效，
+     所以这里补一条更高优先级的，保证聚焦时描边还是变黄 */
+  .search-field .form-input:focus { border-color: var(--yellow); }
+  /* Chrome 会给 type=search 自带一个 ✕，和右边的清空按钮重复 */
+  .search-field input::-webkit-search-cancel-button { display: none; }
+
+  .search-icon {
+    position: absolute; left: 14px; top: 50%;
+    transform: translateY(-50%);
+    width: 18px; height: 18px;
+    color: var(--sub);
+    pointer-events: none;
+  }
+  .search-clear {
+    position: absolute; right: 7px; top: 50%;
+    transform: translateY(-50%);
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px;
+    font-size: 13px; color: var(--sub);
+    border-radius: 50%;
+    transition: background .15s, color .15s;
+  }
+  .search-clear:hover { background: var(--field); color: var(--text); }
+
+  /* ---- 类别快捷筛选 ----
+     .chips / .chip 直接用公共样式，和搜索页那一排长得一样。
+     注意这一行是**对原型的偏离**（原型搜索框下面直接就是卡片），是商量后加的；
+     没给「物品类别」四个字的标签，就为省一行高度。 */
+  .cat-chips { margin-top: 12px; }
+
   /* ---- 计数条 ---- */
   .result-bar {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -87,11 +131,13 @@
     border-top: 1px dashed var(--border);
   }
 
-  /* .result-bar / .item-list / .state-page 是 flex 容器，
-     会盖掉浏览器默认的 [hidden]{display:none}，得显式补一条 */
+  /* .result-bar / .item-list / .state-page 是 flex 容器，.btn 是 inline-flex，
+     都会盖掉浏览器默认的 [hidden]{display:none}，得显式补一条 */
   .result-bar[hidden],
   .item-list[hidden],
-  .state-page[hidden] { display: none; }
+  .state-page[hidden],
+  .search-clear[hidden],
+  .state-actions .btn[hidden] { display: none; }
 </style>
 </head>
 
@@ -113,6 +159,21 @@
       </section>
     </div>
 
+    <!-- 搜索框：输入即过滤下面这一屏，placeholder 按模式换 -->
+    <div class="search-field">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/>
+      </svg>
+      <input class="form-input" id="q" type="search" autocomplete="off"
+             aria-label="在当前列表中搜索">
+      <button class="search-clear" id="qClear" type="button" aria-label="清空关键词" hidden>✕</button>
+    </div>
+
+    <!-- 类别快捷筛选。这一页的信息类型已经被 ?kind= 定死了（浏览招领就只出招领），
+         所以不再摆「全部 / 寻物 / 招领」的分段控件，只留物品类别 -->
+    <div class="chips cat-chips" id="catChips" role="radiogroup" aria-label="物品类别"></div>
+
     <div class="result-bar" id="resultBar">
       <span class="result-count" id="resultCount"></span>
     </div>
@@ -125,6 +186,8 @@
       <h3 class="state-title" id="emptyTitle"></h3>
       <p class="state-desc" id="emptyDesc"></p>
       <div class="state-actions">
+        <!-- 筛不到时才出现（文案由 JS 按是搜索还是类别来定）：一键回到不筛选的样子 -->
+        <button class="btn btn-secondary" id="emptyClear" type="button" hidden>清空筛选</button>
         <a class="btn btn-secondary" href="square.html">看看全部信息</a>
       </div>
     </div>
@@ -162,7 +225,9 @@
       mode:      '我要寻物',
       tone:      'is-find',
       emoji:     '💡',
-      guide:     '先找找，看是否有人拾到：下方为同学<b>已发布的招领信息</b>。找到即可联系对方；未找到可点击底部发布。',
+      /* 加粗放在第一句上、不是放在「已发布的招领信息」上 —— 跟原型一致 */
+      guide:     '<b>先找找，看是否有人拾到：</b>下方为同学已发布的招领信息。找到即可联系对方；未找到可点击底部发布。',
+      searchPlaceholder: '搜索已捡到的物品…',
       bar:       '正在进行中的招领信息',
       emptyIcon: '🎒',
       emptyTitle:'暂时还没有招领信息',
@@ -176,7 +241,11 @@
       mode:      '我要招领',
       tone:      'is-claim',
       emoji:     '🎁',
-      guide:     '先找找，看谁在寻找：下方为同学<b>已发布的寻物信息</b>。若无匹配者，再点击底部发布。',
+      guide:     '<b>先找找，看谁在寻找：</b>下方为同学已发布的寻物信息。若无匹配者，再点击底部发布。',
+      /* 原型 02 / 03 的搜索框写的是同一句「搜索已捡到的物品…」，这里照抄了。
+         但 03 是招领页、列的是别人**丢失**的东西，认真讲该写「搜索丢失的物品…」，
+         想按语义改的话，把上面 found 那条一起对齐就行。 */
+      searchPlaceholder: '搜索已捡到的物品…',
       bar:       '正在进行中的寻物信息',
       emptyIcon: '📦',
       emptyTitle:'暂时还没有寻物信息',
@@ -210,10 +279,29 @@
     backBtn.insertAdjacentHTML('beforeend', '<span>返回</span>');
   }
 
-  var elBar = document.getElementById('resultBar');
-  var elCount = document.getElementById('resultCount');
-  var elList  = document.getElementById('list');
-  var elEmpty = document.getElementById('empty');
+  var elQ      = document.getElementById('q');
+  var elClear  = document.getElementById('qClear');
+  var elCat    = document.getElementById('catChips');
+  var elBar    = document.getElementById('resultBar');
+  var elCount  = document.getElementById('resultCount');
+  var elList   = document.getElementById('list');
+  var elEmpty  = document.getElementById('empty');
+  var elEmptyIcon  = document.getElementById('emptyIcon');
+  var elEmptyTitle = document.getElementById('emptyTitle');
+  var elEmptyDesc  = document.getElementById('emptyDesc');
+  var elEmptyClear = document.getElementById('emptyClear');
+
+  /* 这一屏的两个筛选条件，'all' 表示这一项不筛。
+     kind 不在这里 —— 它由 ?kind= 在模块作用域上定死了 */
+  var state = { keyword: '', category: 'all' };
+
+  /* 「筛了但一条都没有」和「本来就没人发」是两回事 ——
+     前者不能说「暂时还没有招领信息」，否则用户会以为全校都没人发 */
+  var NO_HIT = {
+    emptyIcon:  '🔍',
+    emptyTitle: '没有找到相关信息',
+    emptyDesc:  '当前这一屏里没有匹配的信息，换个词或换个类别试试，或者清空筛选看全部。'
+  };
 
   /* ------------------------------------------------------------ 文案 */
 
@@ -226,9 +314,8 @@
     /* copy.guide 是本文件里的常量、不含用户输入，所以这里可以放心用 innerHTML 加粗 */
     document.getElementById('guideText').innerHTML = copy.guide;
 
-    document.getElementById('emptyIcon').textContent  = copy.emptyIcon;
-    document.getElementById('emptyTitle').textContent = copy.emptyTitle;
-    document.getElementById('emptyDesc').textContent  = copy.emptyDesc;
+    elQ.placeholder = copy.searchPlaceholder;
+    /* 空状态的文案跟「有没有在搜索」有关，所以放在 render() 里写 */
 
     var cta = document.getElementById('cta');
     cta.textContent = copy.cta;
@@ -238,23 +325,110 @@
 
   /* ------------------------------------------------------------ 渲染 */
 
+  /* ------------------------------------------------------------ 控件 */
+
+  /* 「不限」+ 6 个类别。生成方式照抄 search.html 的 renderCategories() ——
+     区别只是这里挂在页面背景上、不再套一层 .filters 卡片，省一行高度 */
+  function renderCategories() {
+    elCat.textContent = '';
+
+    [{ id: 'all', label: '不限' }].concat(LF.CATEGORIES).forEach(function (cat) {
+      var active = cat.id === state.category;
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip' + (active ? ' is-active' : '');
+      chip.dataset.category = cat.id;
+      chip.setAttribute('role', 'radio');
+      chip.setAttribute('aria-checked', String(active));
+      chip.textContent = cat.label;
+      elCat.appendChild(chip);
+    });
+  }
+
+  /* ------------------------------------------------------------ 渲染 */
+
+  function isFiltered() {
+    return !!(state.keyword || state.category !== 'all');
+  }
+
   function render() {
     /* 只展示「还在进行中」的：已找到 / 已归还的看了也没用，
-       想看全部（含已完成的）去广场页。排序 LF.search 里做了。 */
-    var hit = LF.search(LF.store.all(), { kind: kind, state: 'open' });
-    var hasHit = hit.length > 0;
+       想看全部（含已完成的）去广场页。排序 LF.search 里做了。
+       keyword 会在标题 / 地点 / 描述 / 类别里找，category 单独比 */
+    var hit = LF.search(LF.store.all(), {
+      kind:     kind,
+      state:    'open',
+      keyword:  state.keyword,
+      category: state.category
+    });
+    var hasHit   = hit.length > 0;
+    var filtered = isFiltered();
+
+    elClear.hidden = !state.keyword;
 
     elBar.hidden   = !hasHit;
     elList.hidden  = !hasHit;
     elEmpty.hidden = hasHit;
 
-    elCount.textContent = copy.bar + ' · 共 ' + hit.length + ' 条';
+    /* 筛过之后就说「找到几条」，别再说「正在进行中的招领信息 · 共 2 条」，
+       那会让人怀疑筛选没生效 */
+    elCount.textContent = filtered
+      ? '找到 ' + hit.length + ' 条匹配结果'
+      : copy.bar + ' · 共 ' + hit.length + ' 条';
+
+    /* 空状态二选一：筛不到（NO_HIT）还是本来就没有（copy） */
+    var empty = filtered ? NO_HIT : copy;
+    elEmptyIcon.textContent  = empty.emptyIcon;
+    elEmptyTitle.textContent = empty.emptyTitle;
+    elEmptyDesc.textContent  = empty.emptyDesc;
+    elEmptyClear.hidden = !filtered;
+    /* 只输了关键词就说「清空搜索」，还选了类别就说「清空筛选」，读着顺一点 */
+    elEmptyClear.textContent =
+      (state.keyword && state.category === 'all') ? '清空搜索' : '清空筛选';
 
     /* 卡片统一走公共组件，和首页 / 广场 / 搜索页长得一样 */
     LF.card.renderList(elList, hit);
   }
 
+  /* ------------------------------------------------------------ 交互 */
+
+  /* 输入框右边那个 ✕ 只管关键词，类别归「不限」那个 chip 管 —— 和搜索页一致 */
+  function clearKeyword() {
+    state.keyword = '';
+    elQ.value = '';
+    render();
+    elQ.focus();
+  }
+
+  /* 空状态里那个按钮：一键把搜索和类别都还原 */
+  function resetFilters() {
+    state.keyword = '';
+    state.category = 'all';
+    elQ.value = '';
+    renderCategories();
+    render();
+    elQ.focus();
+  }
+
+  /* 输入即筛选，和搜索页同一个手感，不用点按钮 */
+  elQ.addEventListener('input', function () {
+    state.keyword = LF.trim(elQ.value);
+    render();
+  });
+
+  elCat.addEventListener('click', function (event) {
+    var chip = event.target.closest('.chip');
+    if (!chip) return;
+    state.category = chip.dataset.category;
+    renderCategories();
+    render();
+  });
+
+  elClear.addEventListener('click', clearKeyword);
+  elEmptyClear.addEventListener('click', resetFilters);
+
   applyCopy();
+  renderCategories();
   render();
 })();
 </script>
