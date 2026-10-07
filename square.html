@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>广场｜拾光校园</title>
+<meta name="description" content="集中浏览校园里所有的失物招领信息，可按寻物 / 招领筛选。">
+<link rel="stylesheet" href="shared/app.css">
+<style>
+  /* 只属于广场页的样式 */
+
+  /* ---- 类型分段 ---- */
+  .square-filter { margin-top: 14px; }
+
+  /* 类型是「全部 / 寻物 / 招领」三项，公共样式里的 .segmented 只有两列 */
+  .segmented.is-three { grid-template-columns: repeat(3, 1fr); }
+  /* 公共样式只给 lost / found 定了激活色，「全部」补一个 */
+  .segmented .seg.is-active[data-kind="all"] { color: var(--text); }
+
+  /* ---- 计数条 ---- */
+  .result-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin: 18px 2px 11px;
+    min-height: 20px;
+  }
+  .result-count { font-size: 12px; color: var(--sub); }
+
+  /* .result-bar / .item-grid / .state-page 分别是 flex 和 grid 容器，
+     会盖掉浏览器默认的 [hidden]{display:none}，得显式补一条 */
+  .result-bar[hidden],
+  .item-grid[hidden],
+  .state-page[hidden] { display: none; }
+</style>
+</head>
+
+<body>
+<div class="app" data-shell="back" data-tab="square" data-title="广场">
+
+  <div data-layout="header"></div>
+
+  <main class="page">
+
+    <!-- 类型筛选。首页「我要寻物」跳 square.html?kind=found，
+         「我要招领」跳 ?kind=lost —— 所以初始值要从地址栏读。 -->
+    <section class="square-filter">
+      <div class="segmented is-three" id="kindSeg" role="group" aria-label="信息类型">
+        <button class="seg is-active" type="button" data-kind="all">全部</button>
+        <button class="seg" type="button" data-kind="lost">寻物</button>
+        <button class="seg" type="button" data-kind="found">招领</button>
+      </div>
+    </section>
+
+    <div class="result-bar" id="resultBar">
+      <span class="result-count" id="resultCount"></span>
+    </div>
+
+    <!-- 双列网格：和首页的单列卡片区分开 -->
+    <div class="item-grid" id="grid"></div>
+
+    <div class="state-page" id="empty" hidden>
+      <div class="state-icon" aria-hidden="true">🗂️</div>
+      <h3 class="state-title">这里还没有相关信息</h3>
+      <p class="state-desc">换个类型看看，或者由你来发第一条。</p>
+      <div class="state-actions">
+        <button class="btn btn-secondary" id="emptyAll" type="button">看全部信息</button>
+        <a class="btn btn-primary" href="publish.html?kind=lost">去发布</a>
+      </div>
+    </div>
+
+  </main>
+
+  <div data-layout="tabbar"></div>
+</div>
+
+<script src="js/core.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/store.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/card.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  LF.layout.init();
+
+  var elKind  = document.getElementById('kindSeg');
+  var elBar   = document.getElementById('resultBar');
+  var elCount = document.getElementById('resultCount');
+  var elGrid  = document.getElementById('grid');
+  var elEmpty = document.getElementById('empty');
+
+  var KINDS = ['all', 'lost', 'found'];
+
+  /* 首页两个大入口直接带参跳过来，认不出来的值一律当「全部」 */
+  function readKindFromUrl() {
+    var kind = new URLSearchParams(location.search).get('kind');
+    return KINDS.indexOf(kind) >= 0 ? kind : 'all';
+  }
+
+  var state = { kind: readKindFromUrl() };
+
+  function applyKind() {
+    Array.prototype.forEach.call(elKind.querySelectorAll('.seg'), function (seg) {
+      var active = seg.dataset.kind === state.kind;
+      seg.classList.toggle('is-active', active);
+      seg.setAttribute('aria-pressed', String(active));
+    });
+  }
+
+  /* 把当前筛选写回地址栏，刷新后还停在同一个筛选上。
+     file:// 下 Chrome 的 origin 是 null，可能拒绝改地址；
+     失败了也不影响页面，所以吞掉异常。 */
+  function syncUrl() {
+    var url = state.kind === 'all' ? location.pathname : '?kind=' + state.kind;
+    try { history.replaceState(null, '', url); } catch (e) { /* 忽略 */ }
+  }
+
+  function render() {
+    /* 排序和「返回副本」LF.search 都做了，这里直接用结果 */
+    var hit = LF.search(LF.store.all(), { kind: state.kind });
+    var hasHit = hit.length > 0;
+
+    elBar.hidden   = !hasHit;
+    elGrid.hidden  = !hasHit;
+    elEmpty.hidden = hasHit;
+
+    var label = state.kind === 'all' ? '全部信息' : LF.KINDS[state.kind] + '信息';
+    elCount.textContent = label + ' · 共 ' + hit.length + ' 条';
+
+    LF.card.renderList(elGrid, hit, { variant: 'stack' });
+  }
+
+  elKind.addEventListener('click', function (event) {
+    var seg = event.target.closest('.seg');
+    if (!seg) return;
+    state.kind = seg.dataset.kind;
+    applyKind();
+    syncUrl();
+    render();
+  });
+
+  document.getElementById('emptyAll').addEventListener('click', function () {
+    state.kind = 'all';
+    applyKind();
+    syncUrl();
+    render();
+  });
+
+  applyKind();
+  render();
+})();
+</script>
+</body>
+</html>
