@@ -142,7 +142,7 @@
 
     <!-- 双核心入口：丢东西的先看招领，捡到东西的先看寻物 -->
     <div class="entries">
-      <a class="entry is-find" href="square.html?kind=found">
+      <a class="entry is-find" href="browse.html?kind=found">
         <span class="entry-icon" aria-hidden="true">🔍</span>
         <span class="entry-kicker">丢失了物品</span>
         <strong class="entry-title">我要寻物</strong>
@@ -150,7 +150,7 @@
         <span class="entry-emoji" aria-hidden="true">🐕</span>
       </a>
 
-      <a class="entry is-claim" href="square.html?kind=lost">
+      <a class="entry is-claim" href="browse.html?kind=lost">
         <span class="entry-icon" aria-hidden="true">🎁</span>
         <span class="entry-kicker">拾到了物品</span>
         <strong class="entry-title">我要招领</strong>
@@ -175,6 +175,11 @@
 <script src="js/store.js"></script>
 <script src="js/layout.js"></script>
 <script src="js/card.js"></script>
+<!-- 侧滑菜单（原型画板 14）。顶栏右上角那个「☰ 菜单」由 layout.js 的 brandHeader()
+     画出来，但点击只挂了一句 console.info，真正的抽屉在这个文件里，
+     DOM 和样式都由它自己注入，这里加一行就够。
+     搜索页 / 广场页 / 我的页 / 详情页也已经引了同一行。 -->
+<script src="js/side-menu.js"></script>
 <script>
 (function () {
   'use strict';
