@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>我的｜拾光校园</title>
+<meta name="description" content="查看个人资料、自己发布过的失物招领记录，并标记为已完成。">
+<link rel="stylesheet" href="shared/app.css">
+<style>
+  /* 只属于「我的」页的样式 */
+
+  /* ---- 个人资料卡 ----
+     原型画板 10 顶部那张：圆头像（黄圈）+ 姓名 + 「学院 · 年级」。
+     文案来自 LF.CURRENT_USER，和 js/core.js 里写死的那个用户是同一份数据。 */
+  .me-profile {
+    display: flex; align-items: center; gap: 12px;
+    margin-top: 14px;
+  }
+  .me-avatar {
+    flex: none;
+    display: flex; align-items: center; justify-content: center;
+    width: 52px; height: 52px;
+    font-size: 26px;
+    background: var(--yellow-100);
+    border: 2px solid var(--yellow);
+    border-radius: 50%;
+  }
+  .me-profile-body { flex: 1; min-width: 0; }
+  .me-name { display: block; font-size: 17px; font-weight: 600; }
+  .me-meta { display: block; margin-top: 3px; font-size: 12px; color: var(--sub); }
+
+  /* ---- 卡片标题（「我的发布记录」）---- */
+  .me-card-title { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+
+  /* .stat-grid 自带 margin-bottom: 4px，这里补 10px 凑成和其他卡片一致的 14px */
+  .me-records { margin-top: 10px; }
+
+  /* ---- 一张发布记录 ----
+     原型里一条记录是一整块浅灰底、圆角，里面「类别标签 + 标题 …… 状态」横排。
+     注意这块不是 js/card.js 的 .item-card —— 我的记录不要缩略图，
+     要的是能一眼扫完的紧凑行，所以样式在本页自己写。 */
+  .me-rec-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .me-rec {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px 9px 12px;
+    background: var(--field);
+    border-radius: 14px;
+  }
+
+  /* 类别标签。配色跟公共的 .badge.is-found / .is-lost 一致（招领蓝、寻物黄），
+     但 .badge 是绝对定位在缩略图角上的，这里要的是参与横排的行内标签，所以另起一个类 */
+  .me-rec-badge {
+    flex: none;
+    padding: 4px 10px;
+    font-size: 12px; font-weight: 600; line-height: 16px;
+    border-radius: 8px;
+  }
+  .me-rec-badge.is-found { background: var(--blue);   color: #fff; }
+  .me-rec-badge.is-lost  { background: var(--yellow); color: var(--text); }
+
+  .me-rec-title {
+    flex: 1; min-width: 0;
+    font-size: 13.5px; font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* ---- 状态控件 ----
+     原型里是个带 ▾ 的白胶囊。做成了原生 <select>：
+     键盘能用、点开就是系统菜单，不用自己写一套弹层。
+
+     选项只有「当前状态」和「已完成」两项 —— 因为 js/store.js 只提供
+     markDone() 这一个改状态的入口，而且注释写明「标记不可逆」。
+     所以已完成的记录不再给下拉，直接换成静态标签（见 .is-done），
+     免得摆一个选了也没用的选项。
+
+     文字一律走 LF.statusText()，和首页 / 广场卡片右下角那个 .pill 同一套文案，
+     全站对同一条信息的说法就只有一个。 */
+  .me-rec-state {
+    flex: none;
+    appearance: none;
+    -webkit-appearance: none;
+    height: 32px;
+    padding: 0 30px 0 13px;
+    font: inherit;
+    font-size: 12.5px; font-weight: 600;
+    color: var(--text);
+    background: var(--card) no-repeat right 10px center / 12px 12px;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238C8C8C' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .me-rec-state:hover { border-color: var(--yellow-300); }
+  .me-rec-state:focus { outline: none; border-color: var(--yellow); }
+
+  /* 已完成：没有 ▾、不响应点击，就是个标签 */
+  .me-rec-state.is-done {
+    display: inline-flex; align-items: center;
+    padding: 0 13px;
+    color: var(--sub);
+    cursor: default;
+  }
+
+  /* ---- 设置列表 ----
+     原型里每一条是**各自一个**浅描边圆角框（不是一条分割线切三段），
+     所以这里用 gap + 边框，而不是 .item-foot 那种 border-top。 */
+  .me-settings { margin-top: 14px; }
+  .me-set-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .me-set {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%;
+    padding: 13px 14px;
+    font-size: 14px; font-weight: 500;
+    text-align: left;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    transition: background .15s, border-color .15s;
+  }
+  .me-set:hover { background: var(--field); border-color: var(--border); }
+  .me-set:active { transform: scale(.995); }
+  .me-set svg { flex: none; width: 18px; height: 18px; color: var(--faint); }
+  .me-set-label { flex: 1; min-width: 0; }
+  .me-set-arrow { color: var(--faint); }
+
+  /* ---- 居中确认框 ----
+     替掉浏览器原生的 confirm() —— 那个框会带上「localhost 显示」这种字样，
+     跟手机 App 的调性对不上；而且要确认的这两件事都不可逆，值得自己画一个
+     说清楚后果的框。
+
+     注意公共的 .sheet 是**底部弹出**的（bottom:0 + 上圆角），不是这种居中的，
+     所以这一套是本页新写的，不是复用。以后别的页面要弹确认框，可以把它提上去。 */
+  .modal {
+    position: fixed; inset: 0; z-index: 100;    /* 高于 .sheet(90)，低于 .toast(120) */
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal[hidden] { display: none; }
+
+  .modal-mask {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, .5);              /* 比 .sheet-mask 的 .38 更实，居中框要更聚焦 */
+    animation: md-fade .16s ease-out;
+  }
+  .modal-box {
+    position: relative;
+    width: min(280px, 78%);
+    overflow: hidden;                           /* 让按钮行贴住圆角 */
+    background: var(--card);
+    border-radius: 18px;
+    box-shadow: var(--shadow-pop);
+    animation: md-pop .18s ease-out;
+    text-align: center;
+  }
+  .modal-title { margin: 0; padding: 24px 20px 0; font-size: 16px; font-weight: 600; }
+  .modal-text {
+    margin: 0; padding: 10px 20px 22px;
+    font-size: 13.5px; line-height: 21px; color: var(--sub);
+  }
+  /* 两个按钮等宽并排，中间一条竖分隔线 —— 小程序模态框的老样子 */
+  .modal-actions {
+    display: grid; grid-template-columns: 1fr 1fr;
+    border-top: 1px solid var(--line);
+  }
+  .modal-btn {
+    height: 48px;
+    font-size: 15px; font-weight: 600;
+    color: var(--sub);
+    transition: background .15s;
+  }
+  .modal-btn + .modal-btn { border-left: 1px solid var(--line); }
+  .modal-btn:hover { background: var(--field); }
+  .modal-btn.is-primary { color: var(--amber-800); }
+
+  /* 键盘 Tab 过来时给个淡淡的黄底，而不是浏览器默认那个黑色方框 ——
+     框里就两个文字按钮，描一圈边看着像「选中了」，跟小程序的样式也不搭 */
+  .modal-btn:focus { outline: none; }
+  .modal-btn:focus-visible { background: var(--yellow-100); }
+  /* 会把数据抹掉的那个（恢复演示数据）用红的 */
+  .modal-btn.is-danger  { color: var(--red); }
+
+  /* 打开时焦点落在框本身（不是「确定」按钮）：这样按 Esc 一定取消、
+     而「回车」不会误触发那件不可逆的事，得先 Tab 到按钮才生效。
+     它是 tabindex="-1" 的元素，被程序聚焦时 Chrome 不给描边，还是显式去掉稳妥 */
+  .modal-box:focus { outline: none; }
+
+  @keyframes md-fade { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes md-pop  { from { opacity: 0; transform: scale(.9) } to { opacity: 1; transform: scale(1) } }
+
+  /* .state-page 是 flex 容器，会盖掉浏览器默认的 [hidden]{display:none}，
+     得显式补一条（它没有 .sheet[hidden] 那样的公共兜底） */
+  .state-page[hidden] { display: none; }
+
+  /* 公共的 .state-page 是给「整页都是空状态」用的（min-height:60vh），
+     但这里它只是顶替「我的发布记录」那一张卡，用 60vh 会把下面的设置卡
+     顶到 TabBar 底下、中间空一大块。所以收成一张卡左右的高度。 */
+  .state-page.is-inline { min-height: 0; padding: 28px 16px 30px; }
+</style>
+</head>
+
+<body>
+<div class="app" data-shell="brand" data-tab="mine">
+
+  <div data-layout="header"></div>
+
+  <main class="page">
+
+    <!-- 个人资料卡。本项目没有登录，这个「我」就是 js/core.js 里写死的 CURRENT_USER -->
+    <section class="card me-profile">
+      <span class="me-avatar" aria-hidden="true">🐕</span>
+      <div class="me-profile-body">
+        <strong class="me-name" id="meName"></strong>
+        <span class="me-meta" id="meMeta"></span>
+      </div>
+    </section>
+
+    <!-- 统计格。三个数全来自 LF.store.stats()，样式用公共的 .stat-grid / .stat。
+         原型画板 10 上没有这一块，是交接文档 6.4 第 2 条要求的。 -->
+    <div class="stat-grid">
+      <div class="stat">
+        <span class="stat-num" id="statTotal">0</span>
+        <span class="stat-label">全部发布</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num" id="statOpen">0</span>
+        <span class="stat-label">进行中</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num" id="statDone">0</span>
+        <span class="stat-label">已完成</span>
+      </div>
+    </div>
+
+    <!-- 我的发布记录。一条都没发过时整张卡收起来，让位给下面的空状态 -->
+    <section class="card me-records" id="recordsCard">
+      <h2 class="me-card-title">我的发布记录</h2>
+      <div class="me-rec-list" id="recList"></div>
+    </section>
+
+    <div class="state-page is-inline" id="emptyPosts" hidden>
+      <div class="state-icon" aria-hidden="true">🐾</div>
+      <h3 class="state-title">还没有发布过信息</h3>
+      <p class="state-desc">丢了东西，或者捡到了什么？发一条试试，看到的人会联系你。</p>
+      <div class="state-actions">
+        <!-- 复用公共弹层：layout.js 已经挂好了「选择发布类型」，这里只要触发的按钮 -->
+        <button class="btn btn-primary" type="button" data-action="post-choice">发布信息</button>
+        <a class="btn btn-secondary" href="square.html">去广场逛逛</a>
+      </div>
+    </div>
+
+    <!-- 设置。三项都还没实现，点了给个明确的提示，别做成点了没反应 -->
+    <section class="card me-settings">
+      <div class="me-set-list">
+        <button class="me-set" type="button" data-soon="使用说明与指南">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M9.7 9.4a2.4 2.4 0 1 1 3.3 2.3c-.7.3-1 .9-1 1.6v.3"/>
+            <path d="M12 16.9h.01"/>
+          </svg>
+          <span class="me-set-label">使用说明与指南</span>
+          <svg class="me-set-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+        </button>
+
+        <button class="me-set" type="button" data-soon="隐私与安全">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3.2 5.6 5.8v5.4c0 4 2.6 7.4 6.4 9 3.8-1.6 6.4-5 6.4-9V5.8z"/>
+            <circle cx="12" cy="10.3" r="1.9"/>
+            <path d="M9 16.1c.6-1.5 1.7-2.3 3-2.3s2.4.8 3 2.3"/>
+          </svg>
+          <span class="me-set-label">隐私与安全</span>
+          <svg class="me-set-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+        </button>
+
+        <!-- 这一项挂「重置演示数据」：markDone 不可逆，标错了就靠它回到初始的 9 条 -->
+        <button class="me-set" type="button" id="resetData">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.1"/>
+            <path d="M19.3 14.9a1.5 1.5 0 0 0 .3 1.7l.1.1a1.9 1.9 0 1 1-2.7 2.7l-.1-.1a1.5 1.5 0 0 0-2.6 1.1v.2a1.9 1.9 0 1 1-3.8 0v-.1a1.5 1.5 0 0 0-1-1.4 1.5 1.5 0 0 0-1.7.3l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1.5 1.5 0 0 0 .3-1.7 1.5 1.5 0 0 0-1.4-.9h-.2a1.9 1.9 0 1 1 0-3.8h.1a1.5 1.5 0 0 0 1.4-1 1.5 1.5 0 0 0-.3-1.7l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1.5 1.5 0 0 0 1.7.3h.1a1.5 1.5 0 0 0 .9-1.4v-.2a1.9 1.9 0 1 1 3.8 0v.1a1.5 1.5 0 0 0 2.6 1.1l.1-.1a1.9 1.9 0 1 1 2.7 2.7l-.1.1a1.5 1.5 0 0 0-.3 1.7v.1a1.5 1.5 0 0 0 1.4.9h.2a1.9 1.9 0 1 1 0 3.8h-.1a1.5 1.5 0 0 0-1.4.9z"/>
+          </svg>
+          <span class="me-set-label">系统设置</span>
+          <svg class="me-set-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 确认框。文案和按钮颜色由 JS 每次填，所以这里只摆骨架。
+       「标记完成」和「恢复演示数据」共用这一个 —— 两件事都不可逆，都该问一句。 -->
+  <div class="modal" id="confirmModal" hidden>
+    <div class="modal-mask" id="modalMask"></div>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
+      <h2 class="modal-title" id="modalTitle"></h2>
+      <p class="modal-text" id="modalText"></p>
+      <div class="modal-actions">
+        <button class="modal-btn" type="button" id="modalCancel">取消</button>
+        <button class="modal-btn is-primary" type="button" id="modalOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <div data-layout="tabbar"></div>
+</div>
+
+<script src="js/core.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/store.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/card.js"></script>
+<!-- 顶栏那个「☰ 菜单」要能点开，就靠这一行。
+     抽屉的 DOM 和样式都由它自己注入，这里不用写容器。
+     首页 index.html 也想要的话，得请队友加同一行。 -->
+<script src="js/side-menu.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* 对应原型画板 10。
+     这一页不需要自己的数据 —— 「我」就是 js/core.js 里写死的 CURRENT_USER，
+     「我的发布」就是 author.name 等于这个人的那几条，判断走 LF.isMine()。
+     改状态的唯一入口是 LF.store.markDone()（只能 open → done，且不可逆）。 */
+
+  LF.layout.init();
+
+  var elRecordCard = document.getElementById('recordsCard');
+  var elRecList    = document.getElementById('recList');
+  var elEmpty      = document.getElementById('emptyPosts');
+
+  /* 状态文案只有 LF.statusText() 一处，别在页面里再抄一份 ——
+     抄了迟早和首页 / 广场卡片右下角那个 .pill 对不上。
+     它只看 item.kind 和 item.state 两个字段，所以这里拿个探针对象去问「另一种状态叫什么」。 */
+  var FLIP = { open: 'done', done: 'open' };
+
+  function stateLabel(kind, state) {
+    return LF.statusText({ kind: kind, state: state });
+  }
+
+  /* ------------------------------------------------------------ 个人资料 */
+  var me = LF.CURRENT_USER;
+  document.getElementById('meName').textContent = me.name;
+  document.getElementById('meMeta').textContent = me.college + ' · ' + me.grade;
+
+  /* ------------------------------------------------------------ 记录列表 */
+
+  function mineItems() {
+    /* 小心：Array#filter 会把下标当第二个参数传进来，
+       而 LF.isMine(item, user) 的第二个参数是「当成谁」。
+       直接写 .filter(LF.isMine) 的话，从第二条起 user 就被传成了下标，
+       判断恒为 false —— 必须包一层。 */
+    var list = LF.store.all().filter(function (item) { return LF.isMine(item); });
+    return LF.sortByTime(list, 'desc');
+  }
+
+  /* 一条记录：类别标签 + 标题 + 状态控件 */
+  function renderRow(item) {
+    var kind = item.kind === 'found' ? 'found' : 'lost';
+    var row = document.createElement('div');
+    row.className = 'me-rec';
+    row.dataset.id = item.id;
+
+    var badge = document.createElement('span');
+    badge.className = 'me-rec-badge is-' + kind;
+    badge.textContent = LF.kindLabel(item);
+
+    var title = document.createElement('span');
+    title.className = 'me-rec-title';
+    title.textContent = item.title || '未命名物品';
+    title.title = item.title || '';        /* 标题被省略号截断时，悬停还能看全 */
+
+    row.appendChild(badge);
+    row.appendChild(title);
+
+    if (LF.canTransit(item)) {
+      /* 还能改：给下拉。两个选项 = 当前状态 + 已完成 */
+      var pick = document.createElement('select');
+      pick.className = 'me-rec-state';
+      pick.dataset.id = item.id;
+      /* 确认框的标题要分「已找到 / 已归还」，改了之后还得知道这条是什么类型，
+         所以把归一过的 kind 也带上（change 事件里拿不到 item，只有这个元素） */
+      pick.dataset.kind = kind;
+      pick.setAttribute('aria-label', '「' + (item.title || '') + '」的信息状态');
+      [item.state, FLIP[item.state]].forEach(function (state) {
+        var opt = document.createElement('option');
+        opt.value = state;
+        opt.textContent = stateLabel(kind, state);
+        if (state === item.state) opt.selected = true;
+        pick.appendChild(opt);
+      });
+      row.appendChild(pick);
+    } else {
+      /* 已完成（或不是本人发的）：不再给下拉，只显示当前状态 */
+      var tag = document.createElement('span');
+      tag.className = 'me-rec-state is-done';
+      tag.textContent = LF.statusText(item);
+      row.appendChild(tag);
+    }
+
+    return row;
+  }
+
+  function render() {
+    var list = mineItems();
+    var hasAny = list.length > 0;
+
+    elRecordCard.hidden = !hasAny;
+    elEmpty.hidden = hasAny;
+
+    elRecList.textContent = '';
+    list.forEach(function (item) { elRecList.appendChild(renderRow(item)); });
+
+    /* 统计格跟着一起刷 —— 改完状态、重置完数据，三个数都得跟着变 */
+    var stat = LF.store.stats();
+    document.getElementById('statTotal').textContent = stat.total;
+    document.getElementById('statOpen').textContent  = stat.open;
+    document.getElementById('statDone').textContent  = stat.done;
+  }
+
+  /* ------------------------------------------------------------ 确认框 */
+
+  /* 用途：ask(选项, function (ok) { ... })。
+     回调是异步的（用户点完才回来），所以别在它后面写依赖结果的代码。 */
+  var ask = (function () {
+    var el       = document.getElementById('confirmModal');
+    var elBox    = el.querySelector('.modal-box');
+    var elTitle  = document.getElementById('modalTitle');
+    var elText   = document.getElementById('modalText');
+    var elOk     = document.getElementById('modalOk');
+    var elCancel = document.getElementById('modalCancel');
+    var pending  = null;      /* 当前这次询问的回调 */
+    var lastFocus = null;     /* 关掉后焦点还给谁 */
+
+    function settle(ok) {
+      el.hidden = true;
+      document.body.classList.remove('is-locked');
+
+      /* 先跑回调再还焦点 —— 反过来的话，会把焦点还到一个马上要被换掉的节点上：
+         两个回调里都有 render()，它会把「我的发布记录」整段重画，
+         而 lastFocus 多半正是被重画掉的那个 <select>。
+
+         另外 .modal-box 此刻已经 display:none，但焦点它还留着，
+         下一个 Tab 会从看不见的元素后面接着数 —— 先明确 blur 掉。
+         重画后原处还在就还给它，不在就落到 <body>，也算个干净的起点。 */
+      var cb = pending;
+      var back = lastFocus;
+      pending = null;
+      elBox.blur();
+      if (cb) cb(ok);
+      if (back && back.isConnected) back.focus();
+    }
+
+    elOk.addEventListener('click', function () { settle(true); });
+    elCancel.addEventListener('click', function () { settle(false); });
+    /* 点遮罩 = 取消。要反悔的那两件事都不该被误触执行 */
+    document.getElementById('modalMask').addEventListener('click', function () { settle(false); });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !el.hidden) settle(false);
+    });
+
+    return function (opts, cb) {
+      elTitle.textContent  = opts.title || '提示';
+      elText.textContent   = opts.text || '';
+      elText.hidden        = !opts.text;      /* <p> 是块级，[hidden] 天然有效 */
+      elOk.textContent     = opts.okText || '确定';
+      elCancel.textContent = opts.cancelText || '取消';
+      elOk.className = 'modal-btn is-primary' + (opts.danger ? ' is-danger' : '');
+
+      lastFocus = document.activeElement;
+      pending = cb;
+      el.hidden = false;
+      document.body.classList.add('is-locked');
+
+      /* 焦点落在框本身，而不是「确定」上 —— 这两件事都不可逆，
+         万一有人手快敲了回车，不该就这么定下来。要确定得先 Tab 过去。 */
+      elBox.focus();
+    };
+  })();
+
+  /* -------------------------------------------------------------- 交互 */
+
+  /* 下拉选了「已完成」就落库。
+     js/store.js 的 markDone() 自己会校验「本人 + 当前是 open」，
+     不满足就返回 null —— 所以这里成功与否都以它返回什么为准，不自己判断。 */
+  elRecList.addEventListener('change', function (event) {
+    var pick = event.target.closest('.me-rec-state');
+    if (!pick || pick.tagName !== 'SELECT') return;
+    if (pick.value === 'open') return;                  /* 本来就是 open，不用动 */
+
+    /* 先问一句再改 —— markDone 不可逆（见 js/core.js 的注释）。
+       用户点「取消」的话，select 已经被浏览器改成新值了，
+       回调里重画一遍就把它拨回当前真实状态。 */
+    var isLost = pick.dataset.kind === 'lost';
+    ask({
+      /* 招领帖是「我把捡到的东西还回去了」，寻物帖是「我丢的东西找回来了」，
+         两句话里的动词不一样，所以标题跟着 kind 变 */
+      title:  isLost ? '确认已找到？' : '确认已归还？',
+      text:   isLost
+        ? '确认后这条寻物信息会标记为「已找到」，无法撤销。'
+        : '确认后这条招领信息会标记为「已归还」，无法撤销。',
+      okText: isLost ? '已找到' : '已归还'
+    }, function (ok) {
+      /* 取消（含点遮罩、按 Esc）：不落库，只重画把下拉拨回去 */
+      if (!ok) { render(); return; }
+
+      var updated = LF.store.markDone(pick.dataset.id);
+      if (!updated) {
+        LF.layout.toast('这条信息没法再改了');
+        render();
+        return;
+      }
+      LF.layout.toast('已标记为「' + LF.statusText(updated) + '」');
+      render();
+    });
+  });
+
+  /* 前两项设置还没实现，点了给一句明确的话，
+     别做成「点了没反应」让人以为页面坏了。 */
+  document.querySelector('.me-set-list').addEventListener('click', function (event) {
+    var row = event.target.closest('.me-set');
+    if (!row || !row.dataset.soon) return;
+    LF.layout.toast('「' + row.dataset.soon + '」演示版本暂未接入');
+  });
+
+  /* 「系统设置」这一行留给「重置演示数据」。
+     LF.store.reset() 会重新灌一遍种子数据 —— 演示前把数据改乱了可以一键恢复。 */
+  document.getElementById('resetData').addEventListener('click', function () {
+    /* danger: 确定按钮走红色 —— 这一下会把新发的那几条连同标记过的状态一起抹掉，
+       是这一页唯一一个「会丢东西」的操作，值得和「标记完成」在视觉上分开 */
+    ask({
+      title:    '恢复演示数据？',
+      text:     '你新发布的、以及标记过的状态都会回到初始的 9 条。',
+      okText:   '恢复',
+      danger:   true
+    }, function (ok) {
+      if (!ok) return;
+      LF.store.reset();
+      render();
+      LF.layout.toast('演示数据已恢复');
+    });
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
