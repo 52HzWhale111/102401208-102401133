@@ -9,22 +9,18 @@
 <style>
   /* 只属于详情页的样式 */
 
-  /* ---- 顶栏（两行）----
-     原型画板 05 的顶栏是两行：品牌头（拾光校园 + ☰菜单）+ 下面一行「‹ 返回 … 帖子详情」。
-     和 browse.html 不同，这一页两行都留着 —— 只留一行的话顶部太空。
-
-     layout.js 的 init() 只会二选一（brandHeader 或 backHeader），
-     所以品牌头那行由本页 JS 自己补上去（它导出了 brandHeader()，直接用）。
+  /* ---- 顶栏（只有一行）----
+     原型画板 05 的顶栏其实是两行：品牌头（拾光校园 + ☰菜单）+ 下面一行「‹ 返回 … 帖子详情」。
+     做的时候砍掉了品牌头那一行 —— 这一页都是从首页/广场/搜索点进来的下钻页，
+     顶上再顶一条「拾光校园 / ☰ 菜单」既跟来路重复又白占 71px，
+     只留一行返回条，和 browse.html 保持一致。
+     （backHeader() 输出的标签本身就带 .is-slim，下面几条都挂在这个类上。没跟着删。）
 
      ⚠️ 下面这段返回条的样式和 browse.html 里那份是**同一段代码**。按道理它该进
         shared/app.css（队友的 publish.html 也是下钻页，同样用得上），但 shared/
         是队友的文件、约定不能改，所以先两页各留一份。建议队友后面收上去。
      队友的 backHeader() 只画一个光秃秃的返回箭头 + 居中标题，
      原型那个胶囊是「‹ 返回」、标题靠右，所以外观和「返回」两个字都在本页补齐。 */
-
-  /* app.css 里两种 .app-header 都是 position:sticky; top:0，两行都吸顶会叠在一起。
-     品牌头这行改成不吸顶：往下翻时它滚走，只留返回条钉在顶上。 */
-  .app > .app-header:not(.is-slim) { position: static; }
 
   .app-header.is-slim { justify-content: space-between; padding: 0 16px; }
   .app-header.is-slim .icon-btn {
@@ -113,6 +109,40 @@
   .dt-btn-copy:hover { filter: brightness(1.05); }
   .dt-contact-hint { margin: 10px 0 0; font-size: 11.5px; line-height: 17px; color: var(--sub); }
 
+  /* ---- 空状态插画（原型画板 13）----
+     ⚠️ 这段和 search.html / mine.html 里的那份是同一份，三处一起改。
+     画板 13 只画了「搜索无结果」一个状态，明细见 search.html 里的注释。 */
+  .empty-art {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    width: 112px; height: 112px;
+    background: #FBF5E0;
+    border: 2px solid #FEE49D;
+    border-radius: 50%;
+  }
+  .empty-art-dog { font-size: 50px; line-height: 1; }
+
+  .empty-art-badge {
+    position: absolute; right: -3px; bottom: -2px;
+    display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px;
+    font-size: 18px; line-height: 1;
+    background: var(--card);
+    border: 2px solid var(--yellow);
+    border-radius: 50%;
+  }
+
+  /* 间距和按钮排布也照画板 13：说明到按钮留一大段，两颗按钮竖排、218 宽 */
+  #notFound .state-title { margin-top: 34px; }
+  #notFound .state-actions { flex-direction: column; gap: 12px; margin-top: 30px; }
+  #notFound .btn { width: 218px; max-width: 100%; }
+
+  /* 公共的 .state-page 只给了 min-height:60vh，在这一页会显得偏上：
+     本页没有 TabBar，60vh 之外剩下的四成高度全空着，画板 13 里那块是竖直居中的。
+     74 = 返回条 46 + .page 的 28 下内边距，正好补到整屏高，
+     内容再由 .state-page 自带的 justify-content:center 居中。 */
+  #notFound { min-height: calc(100dvh - 74px); }
+
   /* .state-page 是 flex 容器，会盖掉浏览器默认的 [hidden]{display:none}，
      得显式补一条（它没有 .sheet[hidden] 那样的公共兜底） */
   .state-page[hidden] { display: none; }
@@ -130,12 +160,15 @@
 
     <!-- 地址栏里的 id 认不出来时走这里：手删了参数、链接被截断、信息已被删除 -->
     <div class="state-page" id="notFound" hidden>
-      <div class="state-icon" aria-hidden="true">🐕</div>
-      <h3 class="state-title">这条信息不见了</h3>
-      <p class="state-desc">链接可能不完整，或者这条信息已经被删掉了。</p>
+      <div class="empty-art" aria-hidden="true">
+        <span class="empty-art-dog">🐩</span>
+        <span class="empty-art-badge">📦</span>
+      </div>
+      <h3 class="state-title">这条信息不存在或已被删除</h3>
+      <p class="state-desc">链接可能不完整，也可能这条信息已经被发布者删掉了。</p>
       <div class="state-actions">
-        <a class="btn btn-secondary" href="index.html">回首页</a>
         <a class="btn btn-primary" href="square.html">去广场看看</a>
+        <a class="btn btn-secondary" href="index.html">回首页</a>
       </div>
     </div>
 
@@ -199,10 +232,6 @@
 <script src="js/store.js"></script>
 <script src="js/layout.js"></script>
 <script src="js/card.js"></script>
-<!-- 本页上面自己补了一行品牌头（布局见文件开头的说明），那行里带着「☰ 菜单」，
-     所以抽屉也得引进来，否则这个按钮点了没反应。
-     队友的 backHeader() 本身没有菜单按钮，data-shell="back" 的几页不用加。 -->
-<script src="js/side-menu.js"></script>
 <script>
 (function () {
   'use strict';
@@ -240,15 +269,6 @@
   })();
 
   LF.layout.init();
-
-  /* 原型画板 05 的顶栏是两行，而 init() 只会二选一（brandHeader 或 backHeader），
-     品牌头这行就由本页自己补：插在返回条前面，两个都是 .app 的子元素。
-     layout.js 导出了 brandHeader()，直接拿来用，不自己拼那段 HTML。
-
-     顺序不能反 —— init() 是把占位 <div data-layout="header"> 整个换掉的，
-     换完才有 .app-header 可以插在它前面。 */
-  var elBackBar = document.querySelector('.app > .app-header');
-  if (elBackBar) elBackBar.insertAdjacentHTML('beforebegin', LF.layout.brandHeader());
 
   /* 队友的 backHeader() 只画了返回箭头，原型里那个胶囊是「‹ 返回」——
      把「返回」两个字补进按钮里。先判断有没有 span：
