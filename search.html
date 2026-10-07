@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>搜索｜拾光校园</title>
-<meta name="description" content="搜索校园里的失物招领信息，按关键词查找丢失或拾到的物品。">
+<meta name="description" content="搜索校园里的失物招领信息，按关键词、类型和物品类别查找丢失或拾到的物品。">
 <link rel="stylesheet" href="shared/app.css">
 <style>
   /* 只属于搜索页的样式 */
@@ -45,6 +45,28 @@
   }
   .search-clear:hover { background: var(--field); color: var(--text); }
 
+  /* ---- 筛选面板 ---- */
+  .filters {
+    margin-top: 14px;
+    padding: 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-card);
+  }
+  .filter-row + .filter-row { margin-top: 14px; }
+
+  .filter-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 12px; font-weight: 600; color: var(--sub);
+  }
+
+  /* 类型是「全部 / 寻物 / 招领」三项，公共样式里的 .segmented 只有两列 */
+  .segmented.is-three { grid-template-columns: repeat(3, 1fr); }
+  /* 公共样式只给 lost / found 定了激活色，「全部」补一个 */
+  .segmented .seg.is-active[data-kind="all"] { color: var(--text); }
+
   /* ---- 结果计数条 ---- */
   .result-bar {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -58,8 +80,9 @@
   }
   .result-reset:hover { color: var(--amber-950); }
 
-  /* .result-bar / .item-list / .state-page 都是 flex 容器，
+  /* .filters / .result-bar / .item-list / .state-page 都是 flex 或 grid 容器，
      会盖掉浏览器默认的 [hidden]{display:none}，得显式补一条 */
+  .filters[hidden],
   .result-bar[hidden],
   .item-list[hidden],
   .state-page[hidden] { display: none; }
@@ -84,6 +107,25 @@
       <button class="search-clear" id="qClear" type="button" aria-label="清空关键词" hidden>✕</button>
     </div>
 
+    <!-- 筛选面板：类型 + 物品类别 -->
+    <section class="filters">
+
+      <div class="filter-row">
+        <span class="filter-label" id="l-kind">信息类型</span>
+        <div class="segmented is-three" id="kindSeg" role="group" aria-labelledby="l-kind">
+          <button class="seg is-active" type="button" data-kind="all">全部</button>
+          <button class="seg" type="button" data-kind="lost">寻物</button>
+          <button class="seg" type="button" data-kind="found">招领</button>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <span class="filter-label" id="l-category">物品类别</span>
+        <div class="chips" id="categoryChips" role="radiogroup" aria-labelledby="l-category"></div>
+      </div>
+
+    </section>
+
     <div class="result-bar" id="resultBar">
       <span class="result-count" id="resultCount"></span>
       <button class="result-reset" id="resetBtn" type="button" hidden>重置筛选</button>
@@ -95,9 +137,9 @@
     <div class="state-page" id="empty" hidden>
       <div class="state-icon" aria-hidden="true">🔍</div>
       <h3 class="state-title">没有找到相关信息</h3>
-      <p class="state-desc">换个关键词试试，或者去广场逛逛。</p>
+      <p class="state-desc">换个关键词试试，或者放宽筛选条件。</p>
       <div class="state-actions">
-        <button class="btn btn-secondary" id="emptyReset" type="button">清空关键词</button>
+        <button class="btn btn-secondary" id="emptyReset" type="button">重置筛选</button>
         <a class="btn btn-primary" href="square.html">去广场看看</a>
       </div>
     </div>
@@ -120,48 +162,129 @@
 
   var elQ      = document.getElementById('q');
   var elClear  = document.getElementById('qClear');
+  var elKind   = document.getElementById('kindSeg');
+  var elCat    = document.getElementById('categoryChips');
   var elBar    = document.getElementById('resultBar');
   var elCount  = document.getElementById('resultCount');
   var elReset  = document.getElementById('resetBtn');
   var elList   = document.getElementById('resultList');
   var elEmpty  = document.getElementById('empty');
 
-  /* 允许从别处带词跳进来：search.html?q=耳机 */
-  var initial = LF.trim(new URLSearchParams(location.search).get('q'));
-  if (initial) elQ.value = initial;
+  /* 三个筛选条件，'all' 表示这一项不筛 */
+  var state = {
+    keyword:  LF.trim(new URLSearchParams(location.search).get('q')),   /* 允许 search.html?q=耳机 */
+    kind:     'all',
+    category: 'all'
+  };
+
+  /* ------------------------------------------------------------ 控件 */
+
+  /* 「不限」+ 6 个类别。生成方式照抄 publish.html 的 renderCategories()，
+     区别只是多一个「不限」项 —— 搜索页的筛选要能取消，发布页的必选不能。 */
+  function renderCategories() {
+    elCat.textContent = '';
+
+    [{ id: 'all', label: '不限' }].concat(LF.CATEGORIES).forEach(function (cat) {
+      var active = cat.id === state.category;
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip' + (active ? ' is-active' : '');
+      chip.dataset.category = cat.id;
+      chip.setAttribute('role', 'radio');
+      chip.setAttribute('aria-checked', String(active));
+      chip.textContent = cat.label;
+      elCat.appendChild(chip);
+    });
+  }
+
+  /* 同步类型分段控件的高亮，写法同 publish.html 的 applyKind() */
+  function applyKind() {
+    Array.prototype.forEach.call(elKind.querySelectorAll('.seg'), function (seg) {
+      var active = seg.dataset.kind === state.kind;
+      seg.classList.toggle('is-active', active);
+      seg.setAttribute('aria-pressed', String(active));
+    });
+  }
+
+  /* ------------------------------------------------------------ 渲染 */
+
+  function isFiltered() {
+    return !!(state.keyword || state.kind !== 'all' || state.category !== 'all');
+  }
 
   function render() {
-    var keyword = LF.trim(elQ.value);
     /* 排序和「返回副本」LF.search 都做了，这里直接用结果 */
-    var hit = LF.search(LF.store.all(), { keyword: keyword });
-    var hasHit = hit.length > 0;
+    var hit = LF.search(LF.store.all(), {
+      keyword:  state.keyword,
+      kind:     state.kind,
+      category: state.category
+    });
+    var hasHit   = hit.length > 0;
+    var filtered = isFiltered();
 
-    elClear.hidden = !keyword;
-    elReset.hidden = !keyword;
+    elClear.hidden = !state.keyword;
+    elReset.hidden = !filtered;
 
     /* 一条都没搜到时，把计数条和列表一起收起来，让空状态独占这一屏 */
     elBar.hidden   = !hasHit;
     elList.hidden  = !hasHit;
     elEmpty.hidden = hasHit;
 
-    elCount.textContent = keyword
+    elCount.textContent = filtered
       ? '找到 ' + hit.length + ' 条匹配结果'
       : '最近发布 · 共 ' + hit.length + ' 条';
 
     LF.card.renderList(elList, hit);
   }
 
-  function clearKeyword() {
+  /* ------------------------------------------------------------ 交互 */
+
+  function resetFilters() {
+    state.keyword = '';
+    state.kind = 'all';
+    state.category = 'all';
+    elQ.value = '';
+    applyKind();
+    renderCategories();
+    render();
+  }
+
+  elQ.addEventListener('input', function () {
+    state.keyword = LF.trim(elQ.value);
+    render();
+  });
+
+  elKind.addEventListener('click', function (event) {
+    var seg = event.target.closest('.seg');
+    if (!seg) return;
+    state.kind = seg.dataset.kind;
+    applyKind();
+    render();
+  });
+
+  elCat.addEventListener('click', function (event) {
+    var chip = event.target.closest('.chip');
+    if (!chip) return;
+    state.category = chip.dataset.category;
+    renderCategories();
+    render();
+  });
+
+  elClear.addEventListener('click', function () {
+    state.keyword = '';
     elQ.value = '';
     render();
     elQ.focus();
-  }
+  });
 
-  elQ.addEventListener('input', render);
-  elClear.addEventListener('click', clearKeyword);
-  elReset.addEventListener('click', clearKeyword);
-  document.getElementById('emptyReset').addEventListener('click', clearKeyword);
+  elReset.addEventListener('click', resetFilters);
+  document.getElementById('emptyReset').addEventListener('click', resetFilters);
 
+  /* ------------------------------------------------------------ 启动 */
+
+  elQ.value = state.keyword;
+  applyKind();
+  renderCategories();
   render();
 })();
 </script>
