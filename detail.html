@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>帖子详情｜拾光校园</title>
+<meta name="description" content="查看失物招领信息的详细内容、拾取地点与时间、发布者，并联系对方。">
+<link rel="stylesheet" href="shared/app.css">
+<style>
+  /* 只属于详情页的样式 */
+
+  /* ---- 顶栏（两行）----
+     原型画板 05 的顶栏是两行：品牌头（拾光校园 + ☰菜单）+ 下面一行「‹ 返回 … 帖子详情」。
+     和 browse.html 不同，这一页两行都留着 —— 只留一行的话顶部太空。
+
+     layout.js 的 init() 只会二选一（brandHeader 或 backHeader），
+     所以品牌头那行由本页 JS 自己补上去（它导出了 brandHeader()，直接用）。
+
+     ⚠️ 下面这段返回条的样式和 browse.html 里那份是**同一段代码**。按道理它该进
+        shared/app.css（队友的 publish.html 也是下钻页，同样用得上），但 shared/
+        是队友的文件、约定不能改，所以先两页各留一份。建议队友后面收上去。
+     队友的 backHeader() 只画一个光秃秃的返回箭头 + 居中标题，
+     原型那个胶囊是「‹ 返回」、标题靠右，所以外观和「返回」两个字都在本页补齐。 */
+
+  /* app.css 里两种 .app-header 都是 position:sticky; top:0，两行都吸顶会叠在一起。
+     品牌头这行改成不吸顶：往下翻时它滚走，只留返回条钉在顶上。 */
+  .app > .app-header:not(.is-slim) { position: static; }
+
+  .app-header.is-slim { justify-content: space-between; padding: 0 16px; }
+  .app-header.is-slim .icon-btn {
+    width: auto; height: 34px; gap: 3px; padding: 0 12px 0 9px;
+    font-size: 13px; font-weight: 600;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+  }
+  .app-header.is-slim .icon-btn svg { width: 15px; height: 15px; }
+  .app-header.is-slim .page-title {
+    flex: none; font-size: 13px; font-weight: 500; color: var(--sub); text-align: right;
+  }
+  .app-header.is-slim .header-spacer { display: none; }
+
+  /* ---- 大图 ---- */
+  .dt-hero {
+    position: relative;
+    margin: 14px 0 0;
+    border-radius: 20px;
+    overflow: hidden;
+    background: var(--field);
+  }
+  .dt-hero img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+  /* 原型的「招领信息」是个方角大标签，比卡片上那个 .badge 大一圈 */
+  .dt-hero-badge {
+    position: absolute; top: 12px; left: 12px;
+    padding: 5px 12px;
+    font-size: 12px; font-weight: 600; line-height: 18px;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .14);
+  }
+  .dt-hero-badge.is-found { background: var(--blue);   color: #fff; }
+  .dt-hero-badge.is-lost  { background: var(--yellow); color: #2C2C2C; }
+
+  /* ---- 三块内容共用一种白卡片 ---- */
+  .dt-card {
+    margin-top: 14px;
+    padding: 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: var(--shadow-card);
+  }
+
+  .dt-title { margin: 0; font-size: 19px; line-height: 27px; font-weight: 600; }
+
+  .dt-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; }
+  .dt-meta-item {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; line-height: 18px; color: var(--sub);
+  }
+  .dt-meta-item svg { flex: none; width: 14px; height: 14px; color: var(--faint); }
+  .dt-meta-item b { font-weight: 600; }
+
+  .dt-sub {
+    display: flex; align-items: center; gap: 6px;
+    margin: 0 0 10px;
+    font-size: 14px; font-weight: 600;
+  }
+  .dt-desc { margin: 0; font-size: 13.5px; line-height: 23px; color: var(--text); }
+
+  /* ---- 发布者那一行 ---- */
+  .dt-author { display: flex; align-items: center; gap: 12px; }
+  .dt-avatar {
+    flex: none;
+    display: flex; align-items: center; justify-content: center;
+    width: 42px; height: 42px;
+    font-size: 20px;
+    background: var(--yellow-100);
+    border-radius: 50%;
+  }
+  .dt-author-body { flex: 1; min-width: 0; }
+  .dt-author-name { display: block; font-size: 14px; font-weight: 600; }
+  .dt-author-time { display: block; margin-top: 2px; font-size: 11.5px; color: var(--sub); }
+
+  /* ---- 联系弹层里那一行（原型画板 15）---- */
+  .dt-contact {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 8px 8px 8px 14px;
+    background: var(--field);
+    border-radius: 14px;
+  }
+  .dt-contact-value { font-size: 15px; font-weight: 600; letter-spacing: .3px; }
+  /* 不管手机号还是微信号，动作统一是「复制」—— 复制和吐司都由 layout.js 的全局委托代劳 */
+  .dt-btn-copy { background: var(--green); color: #fff; box-shadow: 0 6px 18px rgba(5, 150, 105, .3); }
+  .dt-btn-copy:hover { filter: brightness(1.05); }
+  .dt-contact-hint { margin: 10px 0 0; font-size: 11.5px; line-height: 17px; color: var(--sub); }
+
+  /* .state-page 是 flex 容器，会盖掉浏览器默认的 [hidden]{display:none}，
+     得显式补一条（它没有 .sheet[hidden] 那样的公共兜底） */
+  .state-page[hidden] { display: none; }
+</style>
+</head>
+
+<body>
+<!-- 下钻页：细返回条 + 不要 TabBar。和队友的 publish.html / publish-done.html
+     是同一个约定（layout.js 里 data-tab="none" 会把 TabBar 槽位清空） -->
+<div class="app" data-shell="back" data-tab="none" data-title="帖子详情">
+
+  <div data-layout="header"></div>
+
+  <main class="page">
+
+    <!-- 地址栏里的 id 认不出来时走这里：手删了参数、链接被截断、信息已被删除 -->
+    <div class="state-page" id="notFound" hidden>
+      <div class="state-icon" aria-hidden="true">🐕</div>
+      <h3 class="state-title">这条信息不见了</h3>
+      <p class="state-desc">链接可能不完整，或者这条信息已经被删掉了。</p>
+      <div class="state-actions">
+        <a class="btn btn-secondary" href="index.html">回首页</a>
+        <a class="btn btn-primary" href="square.html">去广场看看</a>
+      </div>
+    </div>
+
+    <!-- 找得到才有这一块，所有文字都由 JS 按这条信息填 -->
+    <div id="detail" hidden>
+
+      <figure class="dt-hero">
+        <img id="heroImg" alt="">
+        <figcaption class="dt-hero-badge" id="heroBadge"></figcaption>
+      </figure>
+
+      <section class="dt-card">
+        <h2 class="dt-title" id="title"></h2>
+        <div class="dt-meta" id="meta"></div>
+      </section>
+
+      <section class="dt-card">
+        <h3 class="dt-sub"><span aria-hidden="true">📝</span>详细描述</h3>
+        <p class="dt-desc" id="desc"></p>
+      </section>
+
+      <section class="dt-card dt-author">
+        <span class="dt-avatar" aria-hidden="true">🐕</span>
+        <div class="dt-author-body">
+          <strong class="dt-author-name" id="authorName"></strong>
+          <span class="dt-author-time" id="authorTime"></span>
+        </div>
+        <button class="btn btn-sm btn-blue" id="contactBtn" type="button"></button>
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- 联系弹层，对应原型画板 15。
+       队友的 layout.js 里 data-action="close-sheet" 写死了 getElementById('postChoice')
+       （只服务于「选择发布类型」那个弹层），所以这里的开关自己接一套。
+       .sheet / .sheet-mask / .sheet-panel / body.is-locked 都是公共样式，直接用。 -->
+  <div class="sheet" id="contactSheet" hidden>
+    <div class="sheet-mask" id="contactMask"></div>
+    <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="contactTitle">
+      <div class="sheet-head">
+        <h2 class="sheet-title" id="contactTitle"></h2>
+        <button class="icon-btn" id="contactClose" type="button" aria-label="关闭">✕</button>
+      </div>
+      <div class="dt-contact">
+        <span class="dt-contact-value" id="contactValue"></span>
+        <!-- 手机号 / 微信号 / QQ 号一律「复制」。
+             按钮只写 data-copy，复制和吐司都由 layout.js 的全局委托代劳 -->
+        <button class="btn btn-sm dt-btn-copy" id="contactCopy" type="button" data-copy="">复制</button>
+      </div>
+      <p class="dt-contact-hint" id="contactHint"></p>
+    </div>
+  </div>
+
+  <div data-layout="tabbar"></div>
+</div>
+
+<script src="js/core.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/store.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/card.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* 对应原型画板 05（帖子详情）+ 15（联系拾到者弹层）。
+     卡片上的链接是 detail.html?id=<id>，见 js/card.js 的 render()。
+     同一个页面要同时伺候「招领」和「寻物」两种帖子，
+     所以下面几张表把随 kind 变的字都收在一起，逻辑里就不再出现中文分支。 */
+
+  var HERO_BADGE   = { found: '招领信息', lost: '寻物信息' };
+  /* 招领帖写「拾取」、寻物帖写「丢失」 */
+  var PLACE_LABEL  = { found: '拾取地点', lost: '丢失地点' };
+  var TIME_LABEL   = { found: '拾取时间', lost: '丢失时间' };
+  /* 招领帖的联系人=拾到者，寻物帖的联系人=失主 */
+  var CONTACT_NAME = { found: '联系拾到者', lost: '联系失主' };
+  /* 这张表同时兼职兜底：认不出的 contact.type 一律当手机号处理 */
+  var CONTACT_LABEL = { phone: '手机号', wechat: '微信号', qq: 'QQ 号' };
+  var CONTACT_HINT = {
+    phone:  '复制号码后拨号联系 TA。',
+    wechat: '复制微信号，到微信里搜「添加朋友」。',
+    qq:     '复制 QQ 号，到 QQ 里搜索添加。'
+  };
+
+  var PIN_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+    + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z"/>'
+    + '<circle cx="12" cy="10" r="2.6"/></svg>';
+  var CLOCK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+    + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<circle cx="12" cy="12" r="9"/><path d="M12 7.2v5l3.2 1.9"/></svg>';
+
+  var item = (function () {
+    var id = new URLSearchParams(location.search).get('id');
+    return id ? LF.store.get(id) : null;
+  })();
+
+  LF.layout.init();
+
+  /* 原型画板 05 的顶栏是两行，而 init() 只会二选一（brandHeader 或 backHeader），
+     品牌头这行就由本页自己补：插在返回条前面，两个都是 .app 的子元素。
+     layout.js 导出了 brandHeader()，直接拿来用，不自己拼那段 HTML。
+
+     顺序不能反 —— init() 是把占位 <div data-layout="header"> 整个换掉的，
+     换完才有 .app-header 可以插在它前面。 */
+  var elBackBar = document.querySelector('.app > .app-header');
+  if (elBackBar) elBackBar.insertAdjacentHTML('beforebegin', LF.layout.brandHeader());
+
+  /* 队友的 backHeader() 只画了返回箭头，原型里那个胶囊是「‹ 返回」——
+     把「返回」两个字补进按钮里。先判断有没有 span：
+     万一以后队友自己把文字画进去了，这里就不会出现两个「返回」。 */
+  var backBtn = document.querySelector('.app-header [data-action="back"]');
+  if (backBtn && !backBtn.querySelector('span')) {
+    backBtn.insertAdjacentHTML('beforeend', '<span>返回</span>');
+  }
+
+  /* ---------------------------------------------------- 找不到这条信息 */
+  /* 直接打开 detail.html（没有 ?id=）、链接被截断、或者那条信息已经被删掉，
+     都落到这里。不能再往下渲染了，item 是 null。 */
+  if (!item) {
+    document.getElementById('notFound').hidden = false;
+    document.title = '帖子详情｜拾光校园';
+    return;
+  }
+
+  /* kind 只有这两种，脏数据一律按「招领」处理，保证页面有内容可看 */
+  var kind = item.kind === 'lost' ? 'lost' : 'found';
+  var author = item.author || {};
+  var contact = item.contact || {};
+  var contactType = CONTACT_LABEL[contact.type] ? contact.type : 'phone';
+  var contactValue = LF.trim(contact.value);
+  var done = item.state === 'done';
+
+  document.title = item.title + '｜拾光校园';
+  document.getElementById('detail').hidden = false;
+
+  /* ------------------------------------------------------------ 大图 */
+  var elHero = document.getElementById('heroImg');
+  elHero.alt = item.title;
+  elHero.src = (item.images && item.images[0]) || LF.card.FALLBACK_IMG;
+  elHero.addEventListener('error', function () {
+    elHero.src = LF.card.FALLBACK_IMG;
+  }, { once: true });
+  /* 图片若在监听挂上之前就已失败（缓存里的 404），error 不会再触发 */
+  if (elHero.complete && elHero.naturalWidth === 0) elHero.src = LF.card.FALLBACK_IMG;
+
+  var elBadge = document.getElementById('heroBadge');
+  elBadge.className = 'dt-hero-badge is-' + kind;
+  elBadge.textContent = HERO_BADGE[kind];
+
+  /* ------------------------------------------------- 标题 + 地点 / 时间 */
+  document.getElementById('title').textContent = item.title;
+
+  /* 图标和「拾取地点：」这几个字是本文件里的常量，只有最后一个参数是用户数据，
+     所以只有它走 textContent */
+  function metaEl(icon, label, value) {
+    var el = document.createElement('span');
+    el.className = 'dt-meta-item';
+    el.insertAdjacentHTML('beforeend', icon + '<b>' + label + '：</b>');
+    var text = document.createElement('span');
+    text.textContent = value;
+    el.appendChild(text);
+    return el;
+  }
+
+  var elMeta = document.getElementById('meta');
+  elMeta.appendChild(metaEl(PIN_ICON, PLACE_LABEL[kind], item.place || '地点未填写'));
+  elMeta.appendChild(metaEl(CLOCK_ICON, TIME_LABEL[kind],
+    LF.formatTime(item.happenedAt || item.createdAt) || '时间未填写'));
+
+  /* ------------------------------------------------------------ 描述 */
+  document.getElementById('desc').textContent =
+    item.desc || '发布者没有填写详细描述。';
+
+  /* --------------------------------------------------------- 发布者 */
+  document.getElementById('authorName').textContent = author.name || '同学';
+  document.getElementById('authorTime').textContent =
+    '发布于 ' + (LF.formatRelative(item.createdAt) || '刚刚');
+
+  /* --------------------------------------------------- 联系按钮 + 弹层 */
+  var elBtn   = document.getElementById('contactBtn');
+  var elSheet = document.getElementById('contactSheet');
+
+  document.getElementById('contactTitle').textContent = '💬 ' + CONTACT_NAME[kind];
+  document.getElementById('contactValue').textContent = contactValue || '—';
+
+  /* 三种「联系不了」的情况，按钮直接置灰，别让用户点开一个空弹层 */
+  if (done) {
+    elBtn.textContent = '该信息已结束';
+    elBtn.disabled = true;
+  } else if (!contactValue) {
+    elBtn.textContent = '对方没留联系方式';
+    elBtn.disabled = true;
+  } else {
+    elBtn.textContent = '💬 ' + CONTACT_NAME[kind];
+    /* 招领帖用蓝色（原型画板 05 就是蓝的），寻物帖用首页那两个入口的黄色 */
+    elBtn.className = 'btn btn-sm ' + (kind === 'found' ? 'btn-blue' : 'btn-primary');
+  }
+
+  /* 手机号 / 微信号 / QQ 号一律只给「复制」。
+     作业是在电脑上用 file:// 打开验收的，tel: 在桌面上点了没反应，
+     摆一个「拨打」反而像功能坏了。复制走 layout.js 的 data-copy 全局委托，
+     点完自动弹「已复制」的吐司，这里不用再写处理函数。 */
+  document.getElementById('contactCopy').dataset.copy = contactValue;
+  document.getElementById('contactHint').textContent = CONTACT_HINT[contactType];
+
+  function openSheet() {
+    elSheet.hidden = false;
+    document.body.classList.add('is-locked');     /* 公共样式，挡掉背后页面的滚动 */
+    document.getElementById('contactClose').focus();
+  }
+
+  function closeSheet() {
+    elSheet.hidden = true;
+    document.body.classList.remove('is-locked');
+    elBtn.focus();
+  }
+
+  elBtn.addEventListener('click', function () {
+    if (elBtn.disabled) return;
+    openSheet();
+  });
+  document.getElementById('contactClose').addEventListener('click', closeSheet);
+  document.getElementById('contactMask').addEventListener('click', closeSheet);
+  /* layout.js 里也挂了一个 Esc，但它只关「选择发布类型」那个弹层，管不到这里 */
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && !elSheet.hidden) closeSheet();
+  });
+})();
+</script>
+</body>
+</html>
