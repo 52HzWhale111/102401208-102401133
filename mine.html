@@ -197,6 +197,35 @@
      但这里它只是顶替「我的发布记录」那一张卡，用 60vh 会把下面的设置卡
      顶到 TabBar 底下、中间空一大块。所以收成一张卡左右的高度。 */
   .state-page.is-inline { min-height: 0; padding: 28px 16px 30px; }
+
+  /* ---- 空状态插画（原型画板 13）----
+     ⚠️ 这段和 search.html / detail.html 里的那份是同一份，三处一起改。
+     画板 13 只画了「搜索无结果」一个状态，明细见 search.html 里的注释。 */
+  .empty-art {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    width: 112px; height: 112px;
+    background: #FBF5E0;
+    border: 2px solid #FEE49D;
+    border-radius: 50%;
+  }
+  .empty-art-dog { font-size: 50px; line-height: 1; }
+
+  .empty-art-badge {
+    position: absolute; right: -3px; bottom: -2px;
+    display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px;
+    font-size: 18px; line-height: 1;
+    background: var(--card);
+    border: 2px solid var(--yellow);
+    border-radius: 50%;
+  }
+
+  /* 间距照画板 13 的疏密关系，但整体收一档：这一块只是顶掉「我的发布记录」那张卡，
+     用整页空状态（60vh）的间距会把下面的设置卡顶得太远。 */
+  #emptyPosts .state-title { margin-top: 24px; }
+  #emptyPosts .state-actions { flex-direction: column; gap: 10px; margin-top: 22px; }
+  #emptyPosts .btn { width: 218px; max-width: 100%; }
 </style>
 </head>
 
@@ -240,8 +269,11 @@
     </section>
 
     <div class="state-page is-inline" id="emptyPosts" hidden>
-      <div class="state-icon" aria-hidden="true">🐾</div>
-      <h3 class="state-title">还没有发布过信息</h3>
+      <div class="empty-art" aria-hidden="true">
+        <span class="empty-art-dog">🐩</span>
+        <span class="empty-art-badge">📦</span>
+      </div>
+      <h3 class="state-title">你还没有发布过信息</h3>
       <p class="state-desc">丢了东西，或者捡到了什么？发一条试试，看到的人会联系你。</p>
       <div class="state-actions">
         <!-- 复用公共弹层：layout.js 已经挂好了「选择发布类型」，这里只要触发的按钮 -->

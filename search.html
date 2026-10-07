@@ -80,12 +80,63 @@
   }
   .result-reset:hover { color: var(--amber-950); }
 
+  /* ---- 空状态插画（原型画板 13）----
+     公共的 .state-page 只给了 .state-icon —— 一个光秃秃的 emoji。
+     画板 13 画的是一枚「浅黄圆盘 + 白色小狗 + 右下角箱子角标」的插画，
+     所以另起一套类名，尺寸和配色都按画板量的：
+     圆盘 112×112（含 2px 圈）、盘底 #FBF5E0、圈 #FEE49D；
+     角标 34×34，圆心压在圆盘右下角，往外露约 3px，圈色是饱和的 --yellow；
+     小狗墨迹 48×48，正好落在圆盘正中（量到圆心和盘心完全重合）。 */
+  .empty-art {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    width: 112px; height: 112px;
+    background: #FBF5E0;
+    border: 2px solid #FEE49D;
+    border-radius: 50%;
+  }
+  .empty-art-dog { font-size: 50px; line-height: 1; }
+
+  .empty-art-badge {
+    position: absolute; right: -3px; bottom: -2px;
+    display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px;
+    font-size: 18px; line-height: 1;
+    background: var(--card);
+    border: 2px solid var(--yellow);
+    border-radius: 50%;
+  }
+
+  /* 画板 13 里插画→标题、说明→按钮都比 .state-page 的默认间距开，补上量到的值 */
+  #empty .state-title { margin-top: 34px; }
+  #empty .state-actions {
+    flex-direction: column;      /* 公共样式是一排，画板里是竖着的两颗 */
+    gap: 12px;
+    margin-top: 30px;
+  }
+  /* 两颗按钮在画板里都是 218 宽、居中，不铺满整行 */
+  #empty .btn { width: 218px; max-width: 100%; }
+
+  /* 画板 13 的第二颗按钮是「淡蓝底 + 淡蓝描边 + 蓝字」，
+     app.css 里 .btn-blue 是实心蓝、.btn-secondary 是白底，都不对。
+     底色和描边直接拿 --blue 兑透明度，和画板上量的 (235,243,254)/(187,214,246) 基本吻合。
+     蓝字用的就是原型的 --blue，对比度约 2.9:1 —— 按画板还原，没有再加暗。 */
+  .btn-soft-blue {
+    background: rgba(74, 144, 226, .10);
+    border-color: rgba(74, 144, 226, .35);
+    color: var(--blue);
+  }
+  .btn-soft-blue:hover { background: rgba(74, 144, 226, .16); }
+
   /* .filters / .result-bar / .item-list / .state-page 都是 flex 或 grid 容器，
-     会盖掉浏览器默认的 [hidden]{display:none}，得显式补一条 */
+     会盖掉浏览器默认的 [hidden]{display:none}，得显式补一条。
+     .search-clear 也一样（它是个 display:flex 的圆形按钮）—— 漏了这条的时候，
+     输入框空着那个 ✕ 也照样显示。browse.html 里同名的那颗一开始就补了。 */
   .filters[hidden],
   .result-bar[hidden],
   .item-list[hidden],
-  .state-page[hidden] { display: none; }
+  .state-page[hidden],
+  .search-clear[hidden] { display: none; }
 </style>
 </head>
 
@@ -133,14 +184,20 @@
 
     <div class="item-list" id="resultList"></div>
 
-    <!-- 没有结果时的整屏提示 -->
+    <!-- 没有结果时的整屏提示（原型画板 13）。
+         ⚠️ 画板 13 顶上没有搜索框和筛选面板 —— 那在原型里是个独立屏幕，靠「重新搜索」退回去。
+         这里把搜索框和筛选留在原地（否则用户看到「没找到」却没法改条件，只能退出去），
+         插画 / 文案 / 两颗按钮则照画板做。 -->
     <div class="state-page" id="empty" hidden>
-      <div class="state-icon" aria-hidden="true">🔍</div>
-      <h3 class="state-title">没有找到相关信息</h3>
-      <p class="state-desc">换个关键词试试，或者放宽筛选条件。</p>
+      <div class="empty-art" aria-hidden="true">
+        <span class="empty-art-dog">🐩</span>
+        <span class="empty-art-badge">📦</span>
+      </div>
+      <h3 class="state-title">暂时没有找到相关信息</h3>
+      <p class="state-desc">换个关键词试试，或者发布一条信息？</p>
       <div class="state-actions">
-        <button class="btn btn-secondary" id="emptyReset" type="button">重置筛选</button>
-        <a class="btn btn-primary" href="square.html">去广场看看</a>
+        <button class="btn btn-primary" id="emptyReset" type="button">重新搜索</button>
+        <a class="btn btn-soft-blue" href="publish.html?kind=lost"><span aria-hidden="true">🐾</span>发布寻物</a>
       </div>
     </div>
 
@@ -279,7 +336,14 @@
   });
 
   elReset.addEventListener('click', resetFilters);
-  document.getElementById('emptyReset').addEventListener('click', resetFilters);
+
+  /* 空状态里的「重新搜索」= 清空全部条件 + 把光标送回输入框，接着就能重打。
+     最后那句 focus 不能省：resetFilters() 会把 #empty 藏起来，而这个按钮就在里面，
+     焦点会留在一个 display:none 的元素上（mine.html 的确认框踩过同一个坑）。 */
+  document.getElementById('emptyReset').addEventListener('click', function () {
+    resetFilters();
+    elQ.focus();
+  });
 
   /* ------------------------------------------------------------ 启动 */
 
