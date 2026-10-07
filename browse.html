@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>我要寻物｜拾光校园</title>
+<meta name="description" content="先看看同学们发布的招领 / 寻物信息，找到就直接联系对方，没找到再发布。">
+<link rel="stylesheet" href="shared/app.css">
+<style>
+  /* 只属于这个引导页的样式 */
+
+  /* ---- 顶栏 ----
+     原型画板 02 / 03 的顶栏其实是两行：品牌头（拾光校园 + ☰菜单）+ 下面一行返回条。
+     按沟通结果只留返回条，砍掉品牌头那一行，省下 71px 可视区。
+     返回条的样式取自原型：左边「‹ 返回」带底框的胶囊，右边靠一个小灰字标题。
+
+     队友的 layout.js 里 backHeader() 只画了一个光秃秃的返回图标 + 居中标题，
+     那是队友的文件不能改，所以外观和「返回」两个字都在本页补齐。 */
+  .app-header.is-slim {
+    justify-content: space-between;
+    padding: 0 16px;
+  }
+  .app-header.is-slim .icon-btn {
+    width: auto;
+    height: 34px;
+    gap: 3px;
+    padding: 0 12px 0 9px;
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+  }
+  .app-header.is-slim .icon-btn svg { width: 15px; height: 15px; }
+
+  /* 原型里标题是靠右的小灰字，不是居中的大标题 */
+  .app-header.is-slim .page-title {
+    flex: none;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--sub);
+    text-align: right;
+  }
+  /* 那个占位撑杆是为了让居中标题保持对称的，标题靠右之后它只会把标题往左挤 */
+  .app-header.is-slim .header-spacer { display: none; }
+
+  /* ---- 引导横幅：往下翻卡片时也一直挂在顶栏下面 ---- */
+  .guide-sticky {
+    position: sticky;
+    top: 56px;            /* 正好接在 .app-header 下方（返回顶栏 .is-slim 高 56px，见 shared/app.css） */
+    z-index: 30;          /* 低于顶栏 / TabBar 的 40，高于卡片 */
+    /* 左右各撑出 .page 的 16px 内边距，用不透明底色盖满整条 ——
+       否则横幅圆角外面会漏出正在往上滚的卡片 */
+    margin: 14px -16px 0;
+    padding: 0 16px;
+    background: var(--surface);
+  }
+
+  .guide {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px;
+    border-radius: 16px;
+    /* 粘住时是压在卡片上方的，给一点层次 */
+    box-shadow: var(--shadow-card);
+  }
+  /* 配色跟首页两个大入口卡一致：寻物黄、招领蓝 */
+  .guide.is-find  { background: var(--yellow-100); border: 1px solid var(--yellow-300); color: var(--amber-800); }
+  .guide.is-claim { background: var(--blue-100);   border: 1px solid var(--blue-300);   color: #1E40AF; }
+
+  .guide-emoji { flex: none; font-size: 18px; line-height: 21px; }
+  .guide-text  { margin: 0; font-size: 12px; line-height: 19.5px; }
+  .guide-text b { font-weight: 700; }
+
+  /* ---- 计数条 ---- */
+  .result-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin: 18px 2px 11px;
+    min-height: 20px;
+  }
+  .result-count { font-size: 12px; color: var(--sub); }
+
+  /* ---- 底部发布入口：一条虚线把它和上面的列表分开 ---- */
+  .guide-cta {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px dashed var(--border);
+  }
+
+  /* .result-bar / .item-list / .state-page 是 flex 容器，
+     会盖掉浏览器默认的 [hidden]{display:none}，得显式补一条 */
+  .result-bar[hidden],
+  .item-list[hidden],
+  .state-page[hidden] { display: none; }
+</style>
+</head>
+
+<body>
+<!-- 顶栏用 data-shell="back"：这一页是从首页进来的子页，给一个「← 我要寻物」返回条。
+     data-title 只是写在源码里便于阅读，真正的值由下面的 JS 按模式填 -->
+<div class="app" data-shell="back" data-tab="home" data-title="我要寻物">
+
+  <div data-layout="header"></div>
+
+  <main class="page">
+
+    <!-- 引导横幅：告诉用户「这里是先找后发」。
+         外面套一层 sticky 容器，翻卡片时提示会一直挂在顶栏下面 -->
+    <div class="guide-sticky">
+      <section class="guide" id="guide">
+        <span class="guide-emoji" id="guideEmoji" aria-hidden="true"></span>
+        <p class="guide-text" id="guideText"></p>
+      </section>
+    </div>
+
+    <div class="result-bar" id="resultBar">
+      <span class="result-count" id="resultCount"></span>
+    </div>
+
+    <!-- 单列卡片：和首页列表保持同一种观感，方便直接读标题和地点 -->
+    <div class="item-list" id="list"></div>
+
+    <div class="state-page" id="empty" hidden>
+      <div class="state-icon" id="emptyIcon" aria-hidden="true"></div>
+      <h3 class="state-title" id="emptyTitle"></h3>
+      <p class="state-desc" id="emptyDesc"></p>
+      <div class="state-actions">
+        <a class="btn btn-secondary" href="square.html">看看全部信息</a>
+      </div>
+    </div>
+
+    <!-- 没找到就去发布。链接和按钮配色都由 kind 决定 -->
+    <div class="guide-cta">
+      <a class="btn btn-block" id="cta" href="#"></a>
+    </div>
+
+  </main>
+
+  <div data-layout="tabbar"></div>
+</div>
+
+<script src="js/core.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/store.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/card.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* 这一页是「先浏览，再发布」的引导页，对应原型画板 02 和 03。
+     两块画板除了文案完全同构，所以合成一个页面用 ?kind= 分两种模式，
+     做法和 publish.html 用 ?kind= 合并 06 / 07 是同一个思路。
+
+     注意 ?kind= 指的是**要展示哪一类信息**，和入口是反的：
+       首页「我要寻物」→ browse.html?kind=found   展示别人发布的招领
+       首页「我要招领」→ browse.html?kind=lost    展示别人发布的寻物 */
+
+  var COPY = {
+    /* 我想找回自己丢的东西 —— 先看别人捡到了什么 */
+    found: {
+      mode:      '我要寻物',
+      tone:      'is-find',
+      emoji:     '💡',
+      guide:     '先找找，看是否有人拾到：下方为同学<b>已发布的招领信息</b>。找到即可联系对方；未找到可点击底部发布。',
+      bar:       '正在进行中的招领信息',
+      emptyIcon: '🎒',
+      emptyTitle:'暂时还没有招领信息',
+      emptyDesc: '还没有人发布捡到的东西。你可以先发一条寻物信息，等捡到的人对上号。',
+      cta:       '🐾 没找到？发布寻物信息',
+      ctaHref:   'publish.html?kind=lost',
+      ctaClass:  'btn-primary'
+    },
+    /* 我捡到了东西 —— 先看谁在找 */
+    lost: {
+      mode:      '我要招领',
+      tone:      'is-claim',
+      emoji:     '🎁',
+      guide:     '先找找，看谁在寻找：下方为同学<b>已发布的寻物信息</b>。若无匹配者，再点击底部发布。',
+      bar:       '正在进行中的寻物信息',
+      emptyIcon: '📦',
+      emptyTitle:'暂时还没有寻物信息',
+      emptyDesc: '现在还没有人在找东西。你可以先发一条招领信息，等失主找上门。',
+      cta:       '🐾 没找到？发布招领信息',
+      ctaHref:   'publish.html?kind=found',
+      ctaClass:  'btn-blue'
+    }
+  };
+
+  /* 认不出来的值一律按「我要寻物」处理，保证页面永远有内容可看 */
+  function readKind() {
+    var kind = new URLSearchParams(location.search).get('kind');
+    return COPY[kind] ? kind : 'found';
+  }
+
+  var kind  = readKind();
+  var copy  = COPY[kind];
+
+  /* 顶栏要显示「我要寻物 / 我要招领」，所以得先把标题挂到 .app 上再 init() ——
+     layout.js 的 init() 是从 data-title 上读这个值的。
+     这也是 init() 必须放在 readKind() 后面的原因。 */
+  document.querySelector('.app').dataset.title = copy.mode;
+  LF.layout.init();
+
+  /* 队友的 backHeader() 只画了返回箭头，原型里那个胶囊是「‹ 返回」——
+     把「返回」两个字补进按钮里。先判断有没有 span：
+     万一以后队友自己把文字画进去了，这里就不会出现两个「返回」。 */
+  var backBtn = document.querySelector('.app-header [data-action="back"]');
+  if (backBtn && !backBtn.querySelector('span')) {
+    backBtn.insertAdjacentHTML('beforeend', '<span>返回</span>');
+  }
+
+  var elBar = document.getElementById('resultBar');
+  var elCount = document.getElementById('resultCount');
+  var elList  = document.getElementById('list');
+  var elEmpty = document.getElementById('empty');
+
+  /* ------------------------------------------------------------ 文案 */
+
+  /* 两种模式共用同一套 DOM，靠这张表换文字，逻辑里就不再出现中文分支了 */
+  function applyCopy() {
+    document.title = copy.mode + '｜拾光校园';
+
+    document.getElementById('guide').className = 'guide ' + copy.tone;
+    document.getElementById('guideEmoji').textContent = copy.emoji;
+    /* copy.guide 是本文件里的常量、不含用户输入，所以这里可以放心用 innerHTML 加粗 */
+    document.getElementById('guideText').innerHTML = copy.guide;
+
+    document.getElementById('emptyIcon').textContent  = copy.emptyIcon;
+    document.getElementById('emptyTitle').textContent = copy.emptyTitle;
+    document.getElementById('emptyDesc').textContent  = copy.emptyDesc;
+
+    var cta = document.getElementById('cta');
+    cta.textContent = copy.cta;
+    cta.href = copy.ctaHref;
+    cta.className = 'btn btn-block ' + copy.ctaClass;
+  }
+
+  /* ------------------------------------------------------------ 渲染 */
+
+  function render() {
+    /* 只展示「还在进行中」的：已找到 / 已归还的看了也没用，
+       想看全部（含已完成的）去广场页。排序 LF.search 里做了。 */
+    var hit = LF.search(LF.store.all(), { kind: kind, state: 'open' });
+    var hasHit = hit.length > 0;
+
+    elBar.hidden   = !hasHit;
+    elList.hidden  = !hasHit;
+    elEmpty.hidden = hasHit;
+
+    elCount.textContent = copy.bar + ' · 共 ' + hit.length + ' 条';
+
+    /* 卡片统一走公共组件，和首页 / 广场 / 搜索页长得一样 */
+    LF.card.renderList(elList, hit);
+  }
+
+  applyCopy();
+  render();
+})();
+</script>
+</body>
+</html>
