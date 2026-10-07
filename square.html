@@ -34,14 +34,14 @@
 </head>
 
 <body>
-<div class="app" data-shell="back" data-tab="square" data-title="广场">
+<div class="app" data-shell="brand" data-tab="square">
 
   <div data-layout="header"></div>
 
   <main class="page">
 
-    <!-- 类型筛选。首页「我要寻物」跳 square.html?kind=found，
-         「我要招领」跳 ?kind=lost —— 所以初始值要从地址栏读。 -->
+    <!-- 类型筛选。kind 允许从地址栏读进来：刷新、把链接发给同学都还停在同一个筛选上。
+         首页两个大入口现在走 browse.html 引导页，但广场自己仍可被 ?kind= 直接打开。 -->
     <section class="square-filter">
       <div class="segmented is-three" id="kindSeg" role="group" aria-label="信息类型">
         <button class="seg is-active" type="button" data-kind="all">全部</button>
