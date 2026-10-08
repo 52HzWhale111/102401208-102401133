@@ -217,10 +217,13 @@
     else if (action === 'close-sheet') { closeSheet(); }
     else if (action === 'back') { event.preventDefault(); history.back(); }
     else if (action === 'menu') {
-      // 侧滑菜单属于「浏览链路」，由队友实现（见 docs/交接文档-给队友.md）。
-      // 在他接上之前，这里给个不打扰的提示，避免点了没反应让人以为坏了。
+      // 抽屉本体在 js/side-menu.js 里（队友实现），它自己也挂了 [data-action="menu"] 的监听、
+      // 并且会往页面里注入 #sideMenu —— 所以正常情况下两边都会跑到，
+      // 而这里判断「已经有了 #sideMenu」就什么都不做，不打架。
+      // 留着这个分支是给「某个 brand 页漏引了 side-menu.js」兜底：
+      // 那时抽屉不存在，至少给一句控制台提示，别让按钮点了完全没反应。
       if (!document.getElementById('sideMenu')) {
-        console.info('[拾光校园] 侧滑菜单还没接上，见 docs/交接文档-给队友.md 第 6 节。');
+        console.info('[拾光校园] 这一页没引 js/side-menu.js，☰ 菜单按钮点不开。');
       }
     }
   }

@@ -4,30 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>发布信息｜拾光校园</title>
+<meta name="description" content="发布一条失物招领信息，填写物品名称、类别、地点、时间和联系方式。">
 <link rel="stylesheet" href="shared/app.css">
-<style>
-  .publish-head { margin: 14px 0 18px; }
-  .publish-head .tip { margin: 10px 0 0; font-size: 12px; color: var(--sub); }
-  .publish-head .tip b { color: var(--red); }
-
-  .contact-row { display: grid; grid-template-columns: 104px 1fr; gap: 8px; }
-
-  .form-actions { margin-top: 26px; }
-  .form-actions .btn { width: 100%; }
-
-  /* 顶部自动保存草稿的提示 */
-  .draft-note {
-    display: flex; align-items: center; gap: 6px;
-    margin: 0 0 14px;
-    padding: 9px 12px;
-    font-size: 12px; color: var(--amber-800);
-    background: var(--yellow-100);
-    border: 1px solid var(--yellow-300);
-    border-radius: 12px;
-  }
-  .draft-note[hidden] { display: none; }
-  .draft-note button { font-size: 12px; font-weight: 600; text-decoration: underline; }
-</style>
 </head>
 
 <body>
@@ -36,73 +14,10 @@
   <div data-layout="header"></div>
 
   <main class="page">
-
-    <div class="publish-head">
-      <!-- 分段控件：切换发布寻物 / 发布招领 -->
-      <div class="segmented" role="group" aria-label="发布类型">
-        <button class="seg is-active" type="button" data-kind="lost">发布寻物</button>
-        <button class="seg" type="button" data-kind="found">发布招领</button>
-      </div>
-      <p class="tip" id="formTip">带 <b>*</b> 为必填</p>
-    </div>
-
-    <!-- 上次没写完的草稿 -->
-    <p class="draft-note" id="draftNote" hidden>
-      <span>已恢复上次没填完的内容</span>
-      <button type="button" data-action="clear-draft">清空重填</button>
-    </p>
-
-    <form id="publishForm" novalidate>
-
-      <div class="form-group">
-        <label class="form-label" for="f-title">物品名称<span class="req">*</span></label>
-        <input class="form-input" id="f-title" type="text" maxlength="40" autocomplete="off"
-               placeholder="如：黑色小罗技无线鼠标">
-        <p class="form-error" id="e-title"></p>
-      </div>
-
-      <div class="form-group">
-        <span class="form-label" id="l-category">物品类别<span class="req">*</span></span>
-        <div class="chips" id="f-category" role="radiogroup" aria-labelledby="l-category"></div>
-        <p class="form-error" id="e-category"></p>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="f-place" id="l-place">丢失地点<span class="opt">选填</span></label>
-        <input class="form-input" id="f-place" type="text" autocomplete="off"
-               placeholder="如：二食堂二楼">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="f-time" id="l-time">丢失时间<span class="opt">选填</span></label>
-        <input class="form-input" id="f-time" type="datetime-local">
-        <p class="form-hint">不填就按现在算。</p>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="f-desc">详细描述<span class="opt">选填</span></label>
-        <textarea class="form-textarea" id="f-desc" placeholder="描述特征、外观、有没有特殊标记…"></textarea>
-        <div class="form-counter" id="c-desc">0 / 200</div>
-        <p class="form-error" id="e-desc"></p>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="f-contact-value">联系方式<span class="req">*</span></label>
-        <div class="contact-row">
-          <select class="form-select" id="f-contact-type" aria-label="联系方式类型"></select>
-          <input class="form-input" id="f-contact-value" type="text" autocomplete="off"
-                 placeholder="如：138-0013-8000">
-        </div>
-        <p class="form-hint">会显示在「信息详情」页，方便对方找到你。</p>
-        <p class="form-error" id="e-contact"></p>
-      </div>
-
-      <div class="form-actions">
-        <button class="btn btn-primary" type="submit" id="submitBtn">确认发布寻物信息</button>
-      </div>
-
-    </form>
-
+    <!-- 整张表单（分段控件 + 各字段 + 提交按钮）由 js/form.js 生成，
+         页面只在 onSubmit 里决定「拿到一份合法草稿之后干什么」。
+         编辑页 edit.html 用的是同一个模块，只是 mode 不同。 -->
+    <div id="formHost"></div>
   </main>
 </div>
 
@@ -111,264 +26,35 @@
 <script src="js/store.js"></script>
 <script src="js/layout.js"></script>
 <script src="js/card.js"></script>
+<script src="js/form.js"></script>
 <script>
 (function () {
   'use strict';
 
-  var DRAFT_KEY = 'shiguang.draft.v1';
-
-  var form      = document.getElementById('publishForm');
-  var elKind    = document.querySelector('.segmented');
-  var elTitle   = document.getElementById('f-title');
-  var elCategory= document.getElementById('f-category');
-  var elPlace   = document.getElementById('f-place');
-  var elTime    = document.getElementById('f-time');
-  var elDesc    = document.getElementById('f-desc');
-  var elCounter = document.getElementById('c-desc');
-  var elCType   = document.getElementById('f-contact-type');
-  var elCValue  = document.getElementById('f-contact-value');
-  var elSubmit  = document.getElementById('submitBtn');
-  var elNote    = document.getElementById('draftNote');
-
-  /* 各字段的错误提示元素，key 与 LF.validateDraft 返回的 errors 的 key 对应 */
-  var ERRORS = {
-    title:    document.getElementById('e-title'),
-    category: document.getElementById('e-category'),
-    desc:     document.getElementById('e-desc'),
-    contact:  document.getElementById('e-contact')
-  };
-
-  var state = {
-    kind: readKindFromUrl(),
-    category: '',
-    contactType: 'phone'
-  };
-
-  /* 寻物 / 招领共用一套表单，只是文案不同 —— 原型里两个画板就是同构的 */
-  var COPY = {
-    lost: {
-      place: '丢失地点', placeHolder: '如：二食堂二楼',
-      time: '丢失时间', submit: '确认发布寻物信息'
-    },
-    found: {
-      place: '拾到地点', placeHolder: '如：图书馆三楼',
-      time: '拾到时间', submit: '确认发布招领信息'
-    }
-  };
-
-  function readKindFromUrl() {
-    var kind = new URLSearchParams(location.search).get('kind');
-    return kind === 'found' ? 'found' : 'lost';
-  }
-
-  /* ------------------------------------------------------------ 渲染 */
-
-  function renderCategories() {
-    elCategory.textContent = '';
-    LF.CATEGORIES.forEach(function (cat) {
-      var chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'chip' + (cat.id === state.category ? ' is-active' : '');
-      chip.dataset.category = cat.id;
-      chip.setAttribute('role', 'radio');
-      chip.setAttribute('aria-checked', String(cat.id === state.category));
-      chip.textContent = cat.label;
-      elCategory.appendChild(chip);
-    });
-  }
-
-  function renderContactTypes() {
-    elCType.textContent = '';
-    LF.CONTACT_TYPES.forEach(function (type) {
-      var option = document.createElement('option');
-      option.value = type.id;
-      option.textContent = type.label;
-      elCType.appendChild(option);
-    });
-    elCType.value = state.contactType;
-    syncContactPlaceholder();
-  }
-
-  function syncContactPlaceholder() {
-    var type = LF.CONTACT_TYPES.filter(function (t) { return t.id === state.contactType; })[0];
-    elCValue.placeholder = type ? type.hint : '';
-  }
-
-  function applyKind() {
-    var copy = COPY[state.kind];
-
-    Array.prototype.forEach.call(elKind.querySelectorAll('.seg'), function (seg) {
-      var active = seg.dataset.kind === state.kind;
-      seg.classList.toggle('is-active', active);
-      seg.setAttribute('aria-pressed', String(active));
-    });
-
-    document.getElementById('l-place').firstChild.nodeValue = copy.place;
-    elPlace.placeholder = copy.placeHolder;
-    document.getElementById('l-time').firstChild.nodeValue = copy.time;
-    elSubmit.textContent = copy.submit;
-    document.title = copy.submit.replace('确认', '') + '｜拾光校园';
-  }
-
-  function renderCounter() {
-    var len = elDesc.value.length;
-    elCounter.textContent = len + ' / ' + LF.DESC_MAX;
-    elCounter.classList.toggle('is-over', len > LF.DESC_MAX);
-  }
-
-  /* ------------------------------------------------------- 错误显示 */
-
-  function clearErrors() {
-    Object.keys(ERRORS).forEach(function (key) {
-      ERRORS[key].textContent = '';
-    });
-    [elTitle, elDesc, elCValue].forEach(function (el) { el.classList.remove('is-invalid'); });
-  }
-
-  function showErrors(errors) {
-    clearErrors();
-    Object.keys(errors).forEach(function (key) {
-      if (ERRORS[key]) ERRORS[key].textContent = errors[key];
-    });
-    if (errors.title)    elTitle.classList.add('is-invalid');
-    if (errors.desc)     elDesc.classList.add('is-invalid');
-    if (errors.contact)  elCValue.classList.add('is-invalid');
-
-    // 滚到第一个出错的地方，不然用户不知道哪儿错了
-    var first = errors.title ? elTitle : errors.category ? elCategory
-              : errors.desc ? elDesc : errors.contact ? elCValue : null;
-    if (first && first.scrollIntoView) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    if (first && first.focus) first.focus({ preventScroll: true });
-  }
-
-  /* ------------------------------------------------------- 草稿存取 */
-
-  function collectDraft() {
-    return {
-      kind: state.kind,
-      title: elTitle.value,
-      category: state.category,
-      place: elPlace.value,
-      happenedAt: elTime.value,
-      desc: elDesc.value,
-      contact: { type: state.contactType, value: elCValue.value }
-    };
-  }
-
-  function saveDraft() {
-    try {
-      var draft = collectDraft();
-      var hasContent = draft.title || draft.place || draft.desc || draft.contact.value;
-      if (hasContent) localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-      else localStorage.removeItem(DRAFT_KEY);
-    } catch (e) { /* 存储不可用就不存，不影响填写 */ }
-  }
-
-  function loadDraft() {
-    try {
-      var raw = localStorage.getItem(DRAFT_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (e) { return null; }
-  }
-
-  function clearDraft() {
-    try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* 忽略 */ }
-    elNote.hidden = true;
-  }
-
-  function restoreDraft() {
-    var draft = loadDraft();
-    if (!draft) return;
-
-    state.kind = draft.kind === 'found' ? 'found' : 'lost';
-    state.category = draft.category || '';
-    state.contactType = draft.contact && draft.contact.type ? draft.contact.type : 'phone';
-
-    elTitle.value = draft.title || '';
-    elPlace.value = draft.place || '';
-    elTime.value = draft.happenedAt || '';
-    elDesc.value = draft.desc || '';
-    elCValue.value = (draft.contact && draft.contact.value) || '';
-    elNote.hidden = false;
-  }
-
-  /* ------------------------------------------------------------ 提交 */
-
-  function onSubmit(event) {
-    event.preventDefault();
-    var draft = collectDraft();
-    var result = LF.validateDraft(draft);
-
-    if (!result.ok) {
-      showErrors(result.errors);
-      return;
-    }
-    clearErrors();
-
-    var item = LF.store.add(draft);
-    if (!item) {
-      // store 兜底校验没过（正常走不到这儿），给个通用提示
-      showErrors({ title: '发布失败，请检查填写内容' });
-      return;
-    }
-
-    clearDraft();
-    location.href = 'publish-done.html?id=' + encodeURIComponent(item.id);
-  }
-
-  /* ------------------------------------------------------------ 事件 */
-
-  elKind.addEventListener('click', function (event) {
-    var seg = event.target.closest('.seg');
-    if (!seg) return;
-    state.kind = seg.dataset.kind;
-    applyKind();
-    saveDraft();
-  });
-
-  elCategory.addEventListener('click', function (event) {
-    var chip = event.target.closest('.chip');
-    if (!chip) return;
-    state.category = chip.dataset.category;
-    renderCategories();
-    ERRORS.category.textContent = '';
-    saveDraft();
-  });
-
-  elCType.addEventListener('change', function () {
-    state.contactType = elCType.value;
-    syncContactPlaceholder();
-    saveDraft();
-  });
-
-  elDesc.addEventListener('input', function () {
-    renderCounter();
-    saveDraft();
-  });
-
-  [elTitle, elPlace, elTime, elCValue].forEach(function (el) {
-    el.addEventListener('input', saveDraft);
-  });
-
-  form.addEventListener('submit', onSubmit);
-
-  document.addEventListener('click', function (event) {
-    if (event.target.closest('[data-action="clear-draft"]')) {
-      elTitle.value = ''; elPlace.value = ''; elTime.value = '';
-      elDesc.value = ''; elCValue.value = ''; state.category = '';
-      renderCategories(); renderCounter(); clearErrors(); clearDraft();
-      elTitle.focus();
-    }
-  });
-
-  /* ------------------------------------------------------------ 启动 */
+  /* 对应原型画板的「发布寻物」「发布招领」两个画板。
+     本页只做「发布」这一件事：把表单交给 js/form.js，校验通过后落库、跳转成功页。
+     表单长什么样、哪些字段必填、草稿怎么存，都在 js/form.js 里，这一页不再关心。 */
 
   LF.layout.init();
-  restoreDraft();
-  renderCategories();
-  renderContactTypes();
-  applyKind();
-  renderCounter();
+
+  var form = LF.form.mount(document.getElementById('formHost'), {
+    mode: 'create',
+    /* 从「＋」弹层进来时带 ?kind=lost / ?kind=found，决定分段控件初始选哪个 */
+    kind: new URLSearchParams(location.search).get('kind') === 'found' ? 'found' : 'lost',
+
+    onSubmit: function (draft) {
+      var item = LF.store.add(draft);
+      if (!item) {
+        /* store 的兜底校验没过（正常走不到这儿，表单已经先拦过一道），
+           给个通用提示，别让用户对着按钮发呆 */
+        form.showErrors({ title: '发布失败，请检查填写内容' });
+        return;
+      }
+
+      form.clearDraft();     /* 发成功了就把草稿清掉，下次进来是干净的一张表 */
+      location.href = 'publish-done.html?id=' + encodeURIComponent(item.id);
+    }
+  });
 })();
 </script>
 </body>

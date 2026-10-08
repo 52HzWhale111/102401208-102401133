@@ -128,6 +128,15 @@
   }
 
   /**
+   * 能不能编辑：只有发布者本人能改自己的信息。
+   * 和 canTransit 不同，**已完成的信息也能改** —— 「已找到」是一件事实，
+   * 但描述写错了、联系方式填漏了，什么时候都该让人补上。能不能改状态是另一回事。
+   */
+  function canEdit(item, user) {
+    return !!(item && isMine(item, user));
+  }
+
+  /**
    * 标记为已完成，返回**新对象**（不改原对象，方便测试和撤销）。
    * 寻物 → 已找到；招领 → 已归还。具体文案由 statusText() 决定。
    */
@@ -139,6 +148,39 @@
     next.state = 'done';
     next.updatedAt = when;
     next.timeline = (item.timeline || []).concat([{ state: 'done', at: when }]);
+    return next;
+  }
+
+  /**
+   * 按草稿改写一条已有信息（编辑功能），返回**新对象**（不改原对象，方便测试和撤销）。
+   *
+   * 只覆盖表单上那几个字段，其余原样保留 —— 这是编辑和发布最大的区别：
+   *   - id / createdAt / author 不能变，否则这条信息就变成另一个人发的另一条了；
+   *   - images 不能动（表单里没有图片项，覆盖成空数组等于把配图删了）；
+   *   - **state 也不能动** —— 编辑一段描述不该把「已找到」打回「焦急寻找中」。
+   *     normalizeDraft() 会无条件把 state 设成 open，所以这里绝不能复用它。
+   *
+   * timeline 追加一条 action:'edit' 的条目。注意老数据（以及 markDone 写下的）
+   * 都是 { state, at } 两个键，没有 action —— 判断「有没有被编辑过」要看 action，别看键的个数。
+   */
+  function applyEdit(item, draft, at) {
+    if (!item) return item;
+    var when = at || new Date().toISOString();
+    var next = {};
+    for (var k in item) if (Object.prototype.hasOwnProperty.call(item, k)) next[k] = item[k];
+
+    var d = draft || {};
+    var contact = d.contact || {};
+
+    next.kind       = d.kind === 'found' ? 'found' : 'lost';
+    next.title      = trim(d.title);
+    next.category   = d.category;
+    next.place      = trim(d.place);
+    next.happenedAt = trim(d.happenedAt);
+    next.desc       = trim(d.desc);
+    next.contact    = { type: contact.type, value: trim(contact.value) };
+    next.updatedAt  = when;
+    next.timeline   = (item.timeline || []).concat([{ state: item.state, at: when, action: 'edit' }]);
     return next;
   }
 
@@ -295,6 +337,26 @@
     return pad(d.getMonth() + 1, 2) + '-' + pad(d.getDate(), 2);
   }
 
+  /**
+   * 把数据里的时间转成 <input type="datetime-local"> 认得的字符串
+   * ——**本地**时间的 YYYY-MM-DDTHH:mm。
+   *
+   * 编辑页非做这个转换不可：种子数据里的 happenedAt 是 toISOString() 出来的
+   * 「2026-10-06T15:00:00.000Z」，而 datetime-local 只吃上面那一种写法。
+   * 把带 Z 的 ISO 串直接塞进 input.value，浏览器会判定格式非法、输入框显示为空 ——
+   * 看起来就像「这条信息没有时间」，用户一保存就把原时间抹掉了。
+   *
+   * 认不出来的时间返回空串：宁可让用户重填，也别塞一个错的时间进去。
+   */
+  function toLocalInput(value) {
+    var raw = trim(value);
+    if (!raw) return '';
+    var d = new Date(raw);
+    if (isNaN(d.getTime())) return '';
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1, 2) + '-' + pad(d.getDate(), 2)
+         + 'T' + pad(d.getHours(), 2) + ':' + pad(d.getMinutes(), 2);
+  }
+
   /* ------------------------------------------------------------------ ID */
 
   /** 生成形如 LF-20260928-001 的唯一 ID：同一天内取当前最大序号 +1 */
@@ -333,7 +395,9 @@
     toneOf: toneOf,
     isMine: isMine,
     canTransit: canTransit,
+    canEdit: canEdit,
     markDone: markDone,
+    applyEdit: applyEdit,
 
     validateDraft: validateDraft,
     normalizeDraft: normalizeDraft,
@@ -344,6 +408,7 @@
 
     formatTime: formatTime,
     formatRelative: formatRelative,
+    toLocalInput: toLocalInput,
     nextId: nextId
   };
 });
