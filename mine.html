@@ -29,6 +29,32 @@
   .me-name { display: block; font-size: 17px; font-weight: 600; }
   .me-meta { display: block; margin-top: 3px; font-size: 12px; color: var(--sub); }
 
+  /* ---- 统计格：三个能点的筛选项 ----
+     公共样式里 .stat 是个中性的白卡，元素是 <div>。这一页要它当按钮用，
+     所以在这儿就地覆盖一层：<button> 自带一套系统字体和「按钮外观」，
+     不掰回继承的话，这三个格子的字会和旁边那些卡对不上。
+     .stat / .stat-grid 只在我这一页出现（全站 grep 过），覆盖不会影响别处 ——
+     要提上去改公共样式的话得先问队友。 */
+  .stat {
+    width: 100%;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, transform .13s;
+  }
+  .stat:hover  { border-color: var(--yellow-300); }
+  .stat:active { transform: scale(.98); }
+  /* 键盘 Tab 过来要看得见焦点 —— 这一格是能按回车的 */
+  .stat:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+
+  /* 当前选中的那一档：描边、底色、标签颜色一起加深。
+     只靠底色的话，在浅黄底上看不出到底选的是哪一格。 */
+  .stat.is-active {
+    background: var(--yellow-100);
+    border-color: var(--yellow);
+  }
+  .stat.is-active .stat-label { color: var(--amber-800); }
+
   /* ---- 卡片标题（「我的发布记录」）---- */
   .me-card-title { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
 
@@ -40,6 +66,15 @@
      注意这块不是 js/card.js 的 .item-card —— 我的记录不要缩略图，
      要的是能一眼扫完的紧凑行，所以样式在本页自己写。 */
   .me-rec-list { display: flex; flex-direction: column; gap: 10px; }
+
+  /* 筛出来一条都没有。这和「你还没有发布过信息」不是一回事 ——
+     那是真没有，配大插画劝人发一条；这里只是这一档空着（比如一条都没标记完成），
+     所以在列表原来的位置留一句话就够了，别把整张卡换成空状态。 */
+  .me-rec-none {
+    margin: 4px 0 2px;
+    font-size: 13px; line-height: 20px; color: var(--sub);
+    text-align: center;
+  }
 
   /* 一整行都能点开详情。border 常态留一条**透明**的：按下时只换颜色，
      不会因为凭空多出 1px 让整行跳一下（padding 已经按 1px 边预留减掉了）。 */
@@ -321,27 +356,35 @@
       </div>
     </section>
 
-    <!-- 统计格。三个数全来自 LF.store.stats()，样式用公共的 .stat-grid / .stat。
-         原型画板 10 上没有这一块，是交接文档 6.4 第 2 条要求的。 -->
-    <div class="stat-grid">
-      <div class="stat">
+    <!-- 统计格。三个数全来自 LF.store.stats() —— 那个函数自己就只数本人的
+         （内部走 LF.isMine），所以「进行中 3」和下面列表能对上。
+         原型画板 10 上没有这一块，是交接文档 6.4 第 2 条要求的。
+
+         做成 <button>：点哪一格，下面的「我的发布记录」就只留那一种状态。
+         用按钮而不是 div + 监听点击，是为了回车 / 空格天生就能按，
+         焦点也进得了 Tab 序列 —— 这页别处（记录行）就是因为塞了 <select>
+         才不得不自己做 role="link" + 手接键盘。 -->
+    <div class="stat-grid" id="statGrid" role="group" aria-label="按状态筛选我的发布">
+      <button class="stat is-active" type="button" data-filter="all" aria-pressed="true">
         <span class="stat-num" id="statTotal">0</span>
         <span class="stat-label">全部发布</span>
-      </div>
-      <div class="stat">
+      </button>
+      <button class="stat" type="button" data-filter="open" aria-pressed="false">
         <span class="stat-num" id="statOpen">0</span>
         <span class="stat-label">进行中</span>
-      </div>
-      <div class="stat">
+      </button>
+      <button class="stat" type="button" data-filter="done" aria-pressed="false">
         <span class="stat-num" id="statDone">0</span>
         <span class="stat-label">已完成</span>
-      </div>
+      </button>
     </div>
 
     <!-- 我的发布记录。一条都没发过时整张卡收起来，让位给下面的空状态 -->
     <section class="card me-records" id="recordsCard">
       <h2 class="me-card-title">我的发布记录</h2>
       <div class="me-rec-list" id="recList"></div>
+      <!-- 文案由 JS 按当前筛选档填（进行中 / 已完成），所以这里留空 -->
+      <p class="me-rec-none" id="recNone" hidden></p>
     </section>
 
     <div class="state-page is-inline" id="emptyPosts" hidden>
@@ -453,12 +496,38 @@
 
   var elRecordCard = document.getElementById('recordsCard');
   var elRecList    = document.getElementById('recList');
+  var elRecNone    = document.getElementById('recNone');
   var elEmpty      = document.getElementById('emptyPosts');
+  var elStatGrid   = document.getElementById('statGrid');
 
   /* 状态文案只有 LF.statusText() 一处，别在页面里再抄一份 ——
      抄了迟早和首页 / 广场卡片右下角那个 .pill 对不上。
      它只看 item.kind 和 item.state 两个字段，所以这里拿个探针对象去问「另一种状态叫什么」。 */
   var FLIP = { open: 'done', done: 'open' };
+
+  /* ------------------------------------------------------ 统计格当筛选用 */
+
+  /* 当前选中的那一档，'all' 就是不筛。
+     它**只影响下面的列表**，不影响上面那三个数字 ——
+     数字永远是全局的（点了「已完成」，「全部发布」还得照样写着 4），
+     否则三格会互相吃掉对方，点着点着就分不清总共几条了。 */
+  var stateFilter = 'all';
+
+  /* 这一档空着时的说法。'all' 用不到 —— 那是「一条都没发过」，
+     走的是下面那套大插画空状态，不是这一句。 */
+  var NONE_TEXT = {
+    open: '还没有进行中的信息',
+    done: '还没有已完成的信息'
+  };
+
+  /* 同步三格的高亮，写法同 search.html 的 applyKind() */
+  function applyFilter() {
+    Array.prototype.forEach.call(elStatGrid.querySelectorAll('.stat'), function (cell) {
+      var active = cell.dataset.filter === stateFilter;
+      cell.classList.toggle('is-active', active);
+      cell.setAttribute('aria-pressed', String(active));
+    });
+  }
 
   function stateLabel(kind, state) {
     return LF.statusText({ kind: kind, state: state });
@@ -553,8 +622,14 @@
   }
 
   function render() {
-    var list = mineItems();
-    var hasAny = list.length > 0;
+    var mine   = mineItems();
+    var hasAny = mine.length > 0;
+
+    /* 实际要显示的那批：'all' 原样，否则只留当前这一档。
+       mineItems() 已经排过序了，filter 不动顺序，所以不用再排一次。 */
+    var list = stateFilter === 'all' ? mine : mine.filter(function (item) {
+      return item.state === stateFilter;
+    });
 
     elRecordCard.hidden = !hasAny;
     elEmpty.hidden = hasAny;
@@ -562,7 +637,16 @@
     elRecList.textContent = '';
     list.forEach(function (item) { elRecList.appendChild(renderRow(item)); });
 
-    /* 统计格跟着一起刷 —— 改完状态、重置完数据，三个数都得跟着变 */
+    /* 有信息、但这一档里一条都没有：说「这一档空着」。
+       别复用上面那套大插画 —— 它说的是「你还没发过」，配着「全部发布 4」
+       一起出现会自相矛盾。 */
+    var noneHere = hasAny && !list.length;
+    elRecNone.hidden = !noneHere;
+    if (noneHere) elRecNone.textContent = NONE_TEXT[stateFilter];
+
+    /* 统计格跟着一起刷 —— 改完状态、重置完数据，三个数都得跟着变。
+       这三个数走的是全局的 LF.store.stats()，**不受 stateFilter 影响**：
+       它们是筛选的入口，自己跟着筛就没法切换回去了。 */
     var stat = LF.store.stats();
     document.getElementById('statTotal').textContent = stat.total;
     document.getElementById('statOpen').textContent  = stat.open;
@@ -781,6 +865,20 @@
     });
   });
 
+  /* 点统计格 = 换一档筛选。
+     格子是 <button>，所以焦点本来就落在它身上；下面重画的只有记录列表，
+     不会把焦点冲掉，按 Tab 走开也没问题。
+
+     不用 aria-pressed 之外的标记来表示「选中」—— 高亮是 .is-active 的样式，
+     辅助技术在意的那个状态在这儿，两边都同步（见 applyFilter）。 */
+  elStatGrid.addEventListener('click', function (event) {
+    var cell = event.target.closest('.stat');
+    if (!cell) return;
+    stateFilter = cell.dataset.filter;
+    applyFilter();
+    render();
+  });
+
   /* 前两项设置还没实现，点了给一句明确的话，
      别做成「点了没反应」让人以为页面坏了。 */
   document.querySelector('.me-set-list').addEventListener('click', function (event) {
@@ -802,11 +900,17 @@
     }, function (ok) {
       if (!ok) return;
       LF.store.reset();
+      /* 连筛选也拨回「全部发布」。「恢复演示数据」语义上是让整页回到初始样子，
+         停在某一档上会像是没恢复干净 —— 而且重置完正好停在空档（比如一条已完成都没有）
+         的话，用户会以为数据没回来。 */
+      stateFilter = 'all';
+      applyFilter();
       render();
       LF.layout.toast('演示数据已恢复');
     });
   });
 
+  applyFilter();   /* 初始 'all'：把「全部发布」那一格点上 */
   render();
 
   /* 从编辑页保存完跳回来（edit.html → mine.html?saved=1）时给一句话。
