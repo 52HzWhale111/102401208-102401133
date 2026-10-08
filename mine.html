@@ -167,10 +167,14 @@
   .me-rec-state:hover { border-color: var(--yellow-300); }
   .me-rec-state:focus { outline: none; border-color: var(--yellow); }
 
-  /* 已完成：没有 ▾、不响应点击，就是个标签 */
+  /* 已完成：没有 ▾、不响应点击，就是个标签。
+     ⚠️ background-image 必须显式清掉。那个 ▾ 是上面用 background-image 画的，
+        不是伪元素也不是 content，所以只把 padding 收窄是盖不住它的 ——
+        「已找到」右边会一直挂着一个点了没反应的箭头，看着像还能下拉。 */
   .me-rec-state.is-done {
     display: inline-flex; align-items: center;
     padding: 0 13px;
+    background-image: none;
     color: var(--sub);
     cursor: default;
   }

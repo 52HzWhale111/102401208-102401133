@@ -67,13 +67,11 @@
 
   LF.layout.init();
 
-  /* 队友的 backHeader() 只画返回箭头，原型里那个胶囊是「‹ 返回」——
-     把「返回」两个字补进按钮里（detail.html 也是这么补的）。
-     先判断有没有 span，万一以后队友自己把文字画进去了，这里不会出现两个「返回」。 */
-  var backBtn = document.querySelector('.app-header [data-action="back"]');
-  if (backBtn && !backBtn.querySelector('span')) {
-    backBtn.insertAdjacentHTML('beforeend', '<span>返回</span>');
-  }
+  /* 顶栏保持 backHeader() 的原样：一个圆形「‹」按钮 + 居中标题，
+     和发布页、搜索页这几个下钻页长得完全一样。
+     ⚠️ 这里**不要**再往按钮里塞「返回」两个字。那颗按钮是 flex:none 的 36px 圆，
+        文字塞进去会被挤成上下两行（detail.html 之所以塞得下，是因为它自己
+        另写了一整套胶囊样式的 CSS，本页没有那套样式）。 */
 
   /* -------------------------------------------------- 改不成的几种情况 */
 

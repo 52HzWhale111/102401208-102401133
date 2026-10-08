@@ -354,3 +354,27 @@ describe('页面进场动画', function () {
     assert.ok(/animation:\s*none\s*!important/.test(css), '兜底里没有把动画关掉');
   });
 });
+
+/* ==========================================================================
+ * 七、两处看着小、改起来容易再犯的 UI 细节
+ * ======================================================================== */
+
+describe('UI 细节：静态标签的 ▾ 与编辑页的返回键', function () {
+
+  it('㉘ 「已找到」这种静态标签不会漏出一个点了没反应的 ▾', function () {
+    /* 那个 ▾ 是用 background-image 画的，不是伪元素也不是 content ——
+       所以 .is-done 只把 padding 收窄是盖不住它的，箭头会一直挂在标签右边，
+       看着像还能下拉，点上去却什么都不发生。必须显式 background-image: none。 */
+    const css = after(read('mine.html'), '.me-rec-state.is-done {', 240);
+    assert.ok(/background-image:\s*none/.test(css),
+      '静态标签没有清掉 background-image，「已找到」右边会多留一个 ▾');
+  });
+
+  it('㉙ 编辑页不往返回按钮里塞文字（塞了会被挤成上下两行）', function () {
+    /* backHeader() 画的是一个 flex:none 的 36px 圆按钮，塞进「返回」两个字会被
+       挤成上下两行。详情页能塞是因为它另写了一整套胶囊样式的 CSS，本页没有。
+       要和发布页、搜索页那几个下钻页保持一致 —— 就是一个「‹」。 */
+    assert.ok(!/<span>返回<\/span>/.test(read('edit.html')),
+      'edit.html 又往返回按钮里塞「返回」了，文字会折成上下两行');
+  });
+});
