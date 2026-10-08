@@ -41,12 +41,84 @@
      要的是能一眼扫完的紧凑行，所以样式在本页自己写。 */
   .me-rec-list { display: flex; flex-direction: column; gap: 10px; }
 
+  /* 一整行都能点开详情。border 常态留一条**透明**的：按下时只换颜色，
+     不会因为凭空多出 1px 让整行跳一下（padding 已经按 1px 边预留减掉了）。 */
   .me-rec {
-    display: flex; align-items: center; gap: 10px;
-    padding: 9px 10px 9px 12px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 6px 8px 11px;
     background: var(--field);
+    border: 1px solid transparent;
     border-radius: 14px;
+    cursor: pointer;
+    transition: transform .13s ease, border-color .13s ease, background .13s ease;
   }
+
+  /* ---- 点开的反馈 ----
+     按下时整行缩一点、按类别描边（寻物黄 / 招领蓝）、底色微微提亮。
+     之前这一行是纯 div，点下去什么都不发生 —— 用户根本不知道它能点开。 */
+  .me-rec:active { transform: scale(.975); }
+  .me-rec[data-kind="lost"]:active  { border-color: var(--yellow-300); background: #FFFCF3; }
+  .me-rec[data-kind="found"]:active { border-color: var(--blue-300);   background: #F6FAFF; }
+
+  /* 键盘 Tab 过来也得看得见焦点在哪（这一行是能按回车的）。
+     用 :focus-visible 而不是 :focus —— 鼠标点完不该留一个框在那儿。 */
+  .me-rec:focus-visible { outline: none; border-color: var(--yellow); }
+
+  /* ---- 行尾的「⋯」----
+     整行点开详情，编辑则单独给一个明确的入口。点它弹出「查看详情 / 编辑」的小菜单。
+     它比下拉框窄，夹在状态控件右边，不抢地方。 */
+  /* 宽度卡在 22px：这一行本来就挤（标签 + 标题 + 状态下拉），
+     「⋯」多占一点，标题就少显示一个字 */
+  .me-rec-more {
+    flex: none;
+    display: flex; align-items: center; justify-content: center;
+    width: 22px; height: 24px;
+    margin-left: -2px;
+    font-size: 15px; line-height: 1;
+    color: var(--sub);
+    border-radius: 8px;
+    transition: background .15s, color .15s, transform .15s;
+  }
+  .me-rec-more:hover { background: rgba(0, 0, 0, .06); color: var(--text); }
+  .me-rec-more:active { transform: scale(.9); }
+  .me-rec-more:focus-visible { outline: 2px solid var(--yellow); outline-offset: 1px; }
+
+  /* ---- 「⋯」弹出的行内小菜单 ----
+     整层铺满视口（透明的，不压暗背景 —— 只是个小菜单，不是模态框），
+     点菜单以外的地方就关掉，和 .sheet 的遮罩是同一个思路。
+     菜单本身 absolute 定位在层里，于是 left/top 可以直接用
+     getBoundingClientRect() 量到的视口坐标，不用再换算滚动距离。
+
+     层高 95：压得住页面内容（顶栏是 40），又低于居中确认框(100)和吐司(120)。 */
+  .row-menu-layer { position: fixed; inset: 0; z-index: 95; }
+  .row-menu-layer[hidden] { display: none; }
+
+  .row-menu {
+    position: absolute;
+    min-width: 132px;
+    padding: 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-pop);
+    animation: rm-pop .14s ease-out;
+  }
+
+  .row-menu-item {
+    display: flex; align-items: center; gap: 9px;
+    width: 100%;
+    padding: 9px 12px;
+    font-size: 13.5px; font-weight: 500;
+    text-align: left;
+    border-radius: 10px;
+    transition: background .15s;
+  }
+  .row-menu-item:hover { background: var(--field); }
+  .row-menu-item:active { background: var(--yellow-100); }
+  .row-menu-item:focus-visible { outline: none; background: var(--yellow-100); }
+  .row-menu-item .row-menu-icon { font-size: 14px; line-height: 1; }
+
+  @keyframes rm-pop { from { opacity: 0; transform: scale(.94) } to { opacity: 1; transform: scale(1) } }
 
   /* 类别标签。配色跟公共的 .badge.is-found / .is-lost 一致（招领蓝、寻物黄），
      但 .badge 是绝对定位在缩略图角上的，这里要的是参与横排的行内标签，所以另起一个类 */
@@ -81,11 +153,11 @@
     appearance: none;
     -webkit-appearance: none;
     height: 32px;
-    padding: 0 30px 0 13px;
+    padding: 0 25px 0 11px;
     font: inherit;
     font-size: 12.5px; font-weight: 600;
     color: var(--text);
-    background: var(--card) no-repeat right 10px center / 12px 12px;
+    background: var(--card) no-repeat right 8px center / 12px 12px;
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238C8C8C' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     border: 1px solid var(--border);
     border-radius: 999px;
@@ -325,6 +397,19 @@
 
   </main>
 
+  <!-- 「⋯」弹出的行内小菜单。整层是透明的，只负责「点菜单外面就关掉 + 定位」，
+       里面两项做什么由 JS 按 menuOwnerId 决定（菜单本身不记是哪一条信息）。 -->
+  <div class="row-menu-layer" id="rowMenuLayer" hidden>
+    <div class="row-menu" id="rowMenu" role="menu" aria-label="这条信息的更多操作">
+      <button class="row-menu-item" type="button" role="menuitem" data-menu="view">
+        <span class="row-menu-icon" aria-hidden="true">👁</span><span>查看详情</span>
+      </button>
+      <button class="row-menu-item" type="button" role="menuitem" data-menu="edit">
+        <span class="row-menu-icon" aria-hidden="true">✏️</span><span>编辑</span>
+      </button>
+    </div>
+  </div>
+
   <!-- 确认框。文案和按钮颜色由 JS 每次填，所以这里只摆骨架。
        「标记完成」和「恢复演示数据」共用这一个 —— 两件事都不可逆，都该问一句。 -->
   <div class="modal" id="confirmModal" hidden>
@@ -391,12 +476,22 @@
     return LF.sortByTime(list, 'desc');
   }
 
-  /* 一条记录：类别标签 + 标题 + 状态控件 */
+  /* 一条记录：类别标签 + 标题 + 状态控件 + 「⋯」 */
   function renderRow(item) {
     var kind = item.kind === 'found' ? 'found' : 'lost';
+    var label = item.title || '未命名物品';
+
     var row = document.createElement('div');
     row.className = 'me-rec';
     row.dataset.id = item.id;
+    row.dataset.kind = kind;          /* 按下时的描边颜色靠它区分（见样式里的 :active） */
+
+    /* 整行点开详情。这里用 role="link" 而**不是**直接把行做成 <a>：
+       行里还嵌着 <select> 和「⋯」按钮，交互元素不能塞进 <a>（点一下下拉就会跟着跳走）。
+       代价是键盘得自己接一下 Enter / 空格，见下面的 keydown。 */
+    row.setAttribute('role', 'link');
+    row.tabIndex = 0;
+    row.setAttribute('aria-label', '查看「' + label + '」的详情');
 
     var badge = document.createElement('span');
     badge.className = 'me-rec-badge is-' + kind;
@@ -404,7 +499,7 @@
 
     var title = document.createElement('span');
     title.className = 'me-rec-title';
-    title.textContent = item.title || '未命名物品';
+    title.textContent = label;
     title.title = item.title || '';        /* 标题被省略号截断时，悬停还能看全 */
 
     row.appendChild(badge);
@@ -433,6 +528,21 @@
       tag.className = 'me-rec-state is-done';
       tag.textContent = LF.statusText(item);
       row.appendChild(tag);
+    }
+
+    /* 「⋯」。本人发的才给编辑入口 —— mineItems() 已经只列本人的信息了，
+       这里再问一次 LF.canEdit() 是防着以后这一页改成也显示别人的：
+       那时候不至于多出一颗点进去必然被拒的按钮。 */
+    if (LF.canEdit(item)) {
+      var more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'me-rec-more';
+      more.dataset.more = item.id;
+      more.textContent = '⋯';
+      more.setAttribute('aria-haspopup', 'menu');
+      more.setAttribute('aria-expanded', 'false');
+      more.setAttribute('aria-label', '「' + label + '」的更多操作');
+      row.appendChild(more);
     }
 
     return row;
@@ -515,6 +625,121 @@
     };
   })();
 
+  /* -------------------------------------------------- 点开详情 / 行内菜单 */
+
+  /* 详情页的地址只有一个写法，集中在这儿，改起来不会漏掉某一处 */
+  function detailHref(id) { return 'detail.html?id=' + encodeURIComponent(id); }
+  function editHref(id)   { return 'edit.html?id=' + encodeURIComponent(id); }
+
+  /* ---- 行内小菜单 ----
+     菜单自己**不记**是哪一条信息，只认 menuOwnerId 这个变量 ——
+     记录列表每次 render() 都会整段重画，把 id 存在 DOM 上反而更容易拿到过期的那个。 */
+  var elMenuLayer = document.getElementById('rowMenuLayer');
+  var elMenu      = document.getElementById('rowMenu');
+  var menuOwnerId = null;
+  var menuOpener  = null;      /* 关掉之后焦点还给谁 */
+
+  function openRowMenu(btn) {
+    var row = btn.closest('.me-rec');
+    if (!row) return;
+
+    menuOwnerId = row.dataset.id;
+    menuOpener  = btn;
+
+    /* 打开的这一下先把滚动锁住：菜单是按视口坐标 fixed 定位的，
+       不锁的话背景能滚、菜单却钉在原地，看起来就跟那一行脱开了。
+       .is-locked 是公共样式（弹层、确认框都在用）。 */
+    document.body.classList.add('is-locked');
+    elMenuLayer.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+
+    /* 先显出来再量尺寸 —— 菜单宽度由文字决定，写死一个数字迟早会因为
+       某个字变宽而溢出屏幕右边 */
+    var m = elMenu.getBoundingClientRect();
+    var b = btn.getBoundingClientRect();
+    var GAP = 6;
+
+    /* 横向：菜单右缘对齐按钮右缘，再夹回视口内 */
+    var left = Math.min(b.right - m.width, window.innerWidth - m.width - 8);
+    left = Math.max(8, left);
+
+    /* 纵向：默认挂在按钮下面；下面放不下就翻到按钮上面去 */
+    var top = b.bottom + GAP;
+    if (top + m.height > window.innerHeight - 8) top = b.top - m.height - GAP;
+    top = Math.max(8, top);
+
+    elMenu.style.left = Math.round(left) + 'px';
+    elMenu.style.top  = Math.round(top) + 'px';
+
+    var first = elMenu.querySelector('.row-menu-item');
+    if (first) first.focus();
+  }
+
+  function closeRowMenu() {
+    if (elMenuLayer.hidden) return;
+
+    elMenuLayer.hidden = true;
+    document.body.classList.remove('is-locked');
+    menuOwnerId = null;
+
+    /* 焦点还给那颗「⋯」。不还的话焦点就留在一个已经 display:none 的菜单项上，
+       下一个 Tab 会从看不见的地方接着数（这一页的确认框踩过同一个坑）。
+       重画之后原来的按钮可能已经不在了，那就干脆不还。 */
+    if (menuOpener) {
+      menuOpener.setAttribute('aria-expanded', 'false');
+      if (menuOpener.isConnected) menuOpener.focus();
+      menuOpener = null;
+    }
+  }
+
+  elMenuLayer.addEventListener('click', function (event) {
+    var choice = event.target.closest('[data-menu]');
+
+    /* 点在菜单外面（那层透明遮罩上）= 取消，什么都不做 */
+    if (!choice) { closeRowMenu(); return; }
+
+    /* 先把 id 和动作取出来再关菜单 —— closeRowMenu() 会把 menuOwnerId 清掉 */
+    var id = menuOwnerId;
+    var action = choice.dataset.menu;
+    closeRowMenu();
+
+    if (!id) return;
+    if (action === 'view') location.href = detailHref(id);
+    else if (action === 'edit') location.href = editHref(id);
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && !elMenuLayer.hidden) closeRowMenu();
+  });
+
+  /* ---- 整行点开详情 ---- */
+
+  elRecList.addEventListener('click', function (event) {
+    /* 「⋯」自己处理自己的（它就在这一行里面，不挡掉就会连带跳去详情页） */
+    var more = event.target.closest('.me-rec-more');
+    if (more) { openRowMenu(more); return; }
+
+    /* 状态下拉、以及它展开后点的那一下，都不算「要看详情」 */
+    if (event.target.closest('.me-rec-state')) return;
+
+    var row = event.target.closest('.me-rec');
+    if (row) location.href = detailHref(row.dataset.id);
+  });
+
+  /* 行是 role="link" 的 div，不是 <a>，所以回车和空格得自己接。
+     只在焦点落在**行本身**时接管：落在行内的下拉或「⋯」上时，
+     回车 / 空格是它们自己的确认键，抢过来就点不开了。 */
+  elRecList.addEventListener('keydown', function (event) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (event.target === null) return;
+
+    var row = event.target.closest('.me-rec');
+    if (!row || event.target !== row) return;
+
+    event.preventDefault();   /* 空格默认会把页面往下翻一屏 */
+    location.href = detailHref(row.dataset.id);
+  });
+
   /* -------------------------------------------------------------- 交互 */
 
   /* 下拉选了「已完成」就落库。
@@ -579,6 +804,19 @@
   });
 
   render();
+
+  /* 从编辑页保存完跳回来（edit.html → mine.html?saved=1）时给一句话。
+     提示必须由**落地页**弹：编辑页那边一 location.href，它弹的吐司就跟着没了。
+     弹完顺手把这截参数从地址栏抹掉 —— 不抹的话每刷新一次就再弹一遍，
+     把链接发给别人也带着一串没用的东西。 */
+  if (new URLSearchParams(location.search).get('saved') === '1') {
+    LF.layout.toast('修改已保存');
+    try {
+      history.replaceState(null, '', location.pathname);
+    } catch (e) {
+      /* file:// 下个别环境不让改地址栏，忽略即可 —— 顶多多弹一次，功能不受影响 */
+    }
+  }
 })();
 </script>
 </body>

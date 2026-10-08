@@ -122,6 +122,25 @@
     return updated;
   }
 
+  /**
+   * 按草稿改写一条已有信息（编辑功能）。
+   *   1. 只有发布者本人能改 —— 别人发的信息不给自己动手；
+   *   2. 校验规则和发布**完全一样**（LF.validateDraft），不能出现「发的时候拦、改的时候放」；
+   *   3. 改的是哪几个字段由 LF.applyEdit 决定，state / author / createdAt 都会保留。
+   * 返回落库后的完整对象；不满足条件时返回 null。
+   */
+  function update(id, draft, now) {
+    var item = find(id);
+    if (!item || !LF.canEdit(item)) return null;
+    if (!LF.validateDraft(draft).ok) return null;
+
+    var stamp = now ? new Date(now) : new Date();
+    var next = LF.applyEdit(item, draft, stamp.toISOString());
+    replace(id, next);
+    save();
+    return next;
+  }
+
   function replace(id, next) {
     var list = load();
     for (var i = 0; i < list.length; i++) {
@@ -168,6 +187,7 @@
     all: all,
     get: get,
     add: add,
+    update: update,
     markDone: markDone,
     remove: remove,
     reset: reset,

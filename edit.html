@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>编辑信息｜拾光校园</title>
+<meta name="description" content="修改自己发布过的失物招领信息，改完保存。">
+<link rel="stylesheet" href="shared/app.css">
+<style>
+  /* 这一页几乎不需要自己的样式 —— 表单本身由 js/form.js 连标记带样式一起生成，
+     和发布页长得一模一样（本来就是同一个模块）。只有下面这两条是本页的。 */
+
+  /* .state-page 是 flex 容器，会盖掉浏览器默认的 [hidden]{display:none}，
+     得显式补一条（detail.html / mine.html 也各补了一条） */
+  .state-page[hidden] { display: none; }
+
+  /* 这一页没有 TabBar，60vh 之外剩下的高度全空着，让提示块竖直居中 */
+  #editGone { min-height: calc(100dvh - 74px); }
+</style>
+</head>
+
+<body>
+<!-- 下钻页：细返回条 + 不要 TabBar，和 publish.html / detail.html 同一个约定 -->
+<div class="app is-page-enter" data-shell="back" data-tab="none" data-title="编辑信息">
+
+  <div data-layout="header"></div>
+
+  <main class="page">
+
+    <!-- 编辑改不成的情况：地址栏没带 id、这条信息被删了、或者这压根不是本人发的。
+         这里没有用 .empty-art 那套小狗插画 —— 那枚插画已经在 search / detail / mine
+         三页里各存了一份（三处一起改的那种），再抄第四份只会更难维护，这一页用
+         公共的 .state-icon 就够了。 -->
+    <div class="state-page" id="editGone" hidden>
+      <span class="state-icon" aria-hidden="true">🔒</span>
+      <h3 class="state-title" id="goneTitle">这条信息改不了</h3>
+      <p class="state-desc" id="goneDesc"></p>
+      <div class="state-actions">
+        <a class="btn btn-primary" href="mine.html">回「我的」</a>
+        <a class="btn btn-secondary" href="index.html">回首页</a>
+      </div>
+    </div>
+
+    <!-- 表单纯粹是「容器」，内容由 js/form.js 生成（和发布页同一份代码，
+         只是 mode='edit'：按钮变成「保存修改」，且不自动存草稿） -->
+    <div id="formHost"></div>
+
+  </main>
+</div>
+
+<script src="js/core.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/store.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/card.js"></script>
+<script src="js/form.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* 入口是「我的」页那条信息右边的「⋯ → 编辑」，链接形如 edit.html?id=<id>。
+     这一页只做三件事：把原值填进表单（js/form.js 干的）、
+     把校验通过的草稿写回（LF.store.update）、然后回「我的」页给个提示。 */
+
+  var id = new URLSearchParams(location.search).get('id');
+  var item = id ? LF.store.get(id) : null;
+
+  LF.layout.init();
+
+  /* 队友的 backHeader() 只画返回箭头，原型里那个胶囊是「‹ 返回」——
+     把「返回」两个字补进按钮里（detail.html 也是这么补的）。
+     先判断有没有 span，万一以后队友自己把文字画进去了，这里不会出现两个「返回」。 */
+  var backBtn = document.querySelector('.app-header [data-action="back"]');
+  if (backBtn && !backBtn.querySelector('span')) {
+    backBtn.insertAdjacentHTML('beforeend', '<span>返回</span>');
+  }
+
+  /* -------------------------------------------------- 改不成的几种情况 */
+
+  function refuse(title, desc) {
+    document.getElementById('goneTitle').textContent = title;
+    document.getElementById('goneDesc').textContent = desc;
+    document.getElementById('editGone').hidden = false;
+    document.getElementById('formHost').hidden = true;
+    document.title = '编辑信息｜拾光校园';
+  }
+
+  /* 1) 地址栏没带 id，或这条信息已经被删了：不能再往下渲染，item 是 null */
+  if (!item) {
+    refuse('这条信息不存在或已被删除',
+           '链接可能不完整，也可能这条信息已经被发布者删掉了。');
+    return;
+  }
+
+  /* 2) 不是本人发的。入口「我的」页本来就只列自己的信息，正常走不到这儿；
+        但地址栏是能改的，所以这一道不能省 —— 和 LF.store.update 里那道是同一个规则，
+        这里拦是为了**给出说法**，不是为了兜底数据安全。 */
+  if (!LF.canEdit(item)) {
+    refuse('只能编辑自己发布的信息',
+           '这条信息是「' + ((item.author && item.author.name) || '其他同学') + '」发布的，你没有修改权限。');
+    return;
+  }
+
+  /* -------------------------------------------------------------- 表单 */
+
+  var form = LF.form.mount(document.getElementById('formHost'), {
+    mode: 'edit',
+    value: item,
+
+    onSubmit: function (draft) {
+      var updated = LF.store.update(item.id, draft);
+
+      if (!updated) {
+        /* 走到这儿只有两种可能：这条信息刚才被删了，或者草稿没过校验。
+           校验在 js/form.js 里已经拦过一道，所以基本只剩前一种。 */
+        form.showErrors({ title: '保存失败，这条信息可能已经被删除了' });
+        return;
+      }
+
+      /* 保存完跳回「我的」。带上 ?saved=1 是为了让那边知道「刚保存过」，
+         落地时弹一句提示 —— 页面一跳转，这一页弹的吐司就跟着没了。 */
+      location.href = 'mine.html?saved=1';
+    }
+  });
+})();
+</script>
+</body>
+</html>
