@@ -35,7 +35,7 @@ npm test
 预期输出：
 
 ```
-  76 passing (30ms)
+  78 passing (30ms)
 ```
 
 ### 3. 建议的体验路径
@@ -85,7 +85,7 @@ npm test
 │
 ├─ test/
 │   ├─ core.test.js        Mocha 单元测试：纯逻辑与数据层，34 个用例
-│   ├─ edit.test.js        编辑功能（canEdit / applyEdit / store.update）与页面自检，27 个用例
+│   ├─ edit.test.js        编辑功能（canEdit / applyEdit / store.update）与页面自检，29 个用例
 │   └─ browse.test.js      浏览链路的结构自检，15 个用例              ← 队友实现
 │
 ├─ package.json            npm test 配置（唯一依赖：mocha）
@@ -109,7 +109,7 @@ npm test
 | 更新状态 | 发布者本人在「我的」页可将信息标记为「已找到 / 已归还」，减少重复联系 |
 | 编辑发布过的信息 | `edit.html`：在「我的」页点记录右边的「⋯ → 编辑」进入，改完保存 |
 | 双击 html 即可运行 | 零依赖纯静态站点，见上文「使用说明」 |
-| 单元测试（≥10 例） | `test/` 下三个文件共 **76 个用例**，覆盖校验/搜索/状态流转/编辑/转义/时间/ID |
+| 单元测试（≥10 例） | `test/` 下三个文件共 **78 个用例**，覆盖校验/搜索/状态流转/编辑/转义/时间/ID |
 
 ### 分工说明
 
