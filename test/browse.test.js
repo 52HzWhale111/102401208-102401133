@@ -27,9 +27,12 @@ var ROOT = path.join(__dirname, '..');
 /* 我负责的五个页面 */
 var MY_PAGES = ['search.html', 'square.html', 'browse.html', 'detail.html', 'mine.html'];
 
-/* 全站页面：顶栏接线那几条需要对整个站成立，不只我这五页 */
+/* 全站页面：顶栏接线那几条需要对整个站成立，不只我这五页。
+   edit.html 是队友后加的，它自己有 edit.test.js 管业务；收进来是为了让
+   「back 页不引 side-menu」「脚本顺序」「[hidden] 兜底」这几条全站规矩也罩住它 ——
+   新页面最容易漏的正是这些不看不知道、看了才发现按钮点不动的接线。 */
 var ALL_PAGES = ['index.html', 'search.html', 'square.html', 'browse.html',
-                 'detail.html', 'mine.html', 'publish.html', 'publish-done.html'];
+                 'detail.html', 'mine.html', 'edit.html', 'publish.html', 'publish-done.html'];
 
 function read(file) {
   return fs.readFileSync(path.join(ROOT, file), 'utf8');
@@ -268,6 +271,42 @@ describe('我的页', function () {
     assert.ok(/danger:\s*true/.test(js), '重置数据的确认框没标 danger');
     var css = styleOf(read('mine.html'));
     assert.ok(/is-danger/.test(css), 'CSS 里没有 .is-danger 的红色样式');
+  });
+
+  it('㉚ 三个统计格是能点的筛选项，不是摆着看的数字', function () {
+    /* 改动前它们是 <div>，点了什么都不发生。做成 <button> 是为了回车 / 空格
+       和 Tab 天生就能用 —— 这一页的记录行因为塞了 <select>，只能自己写
+       role="link" 再手接键盘，别再走一遍那条路。 */
+    var html = read('mine.html');
+    ['all', 'open', 'done'].forEach(function (f) {
+      assert.ok(new RegExp('<button[^>]*data-filter="' + f + '"').test(html),
+        '少了 data-filter="' + f + '" 的统计格（或它被改回 <div> 了）');
+    });
+    assert.ok(/id="statGrid"/.test(html), '统计格没有统一容器，监听得逐格挂');
+
+    var js = inlineJs(html);
+    assert.ok(/elStatGrid\.addEventListener\('click'/.test(js), '统计格没接点击');
+    assert.ok(/stateFilter\s*=\s*cell\.dataset\.filter/.test(js), '点了没把档位记下来');
+  });
+
+  it('㉛ 筛选只换列表；数字始终全局，筛空了也不算「你没发过」', function () {
+    var html = read('mine.html');
+    var js   = inlineJs(html);
+
+    /* 数字必须来自不带参数的 LF.store.stats()（它内部走 isMine，本身就只数本人的）。
+       把 stateFilter 塞进去的话，点了「已完成」，「全部发布」会跟着变成 1 ——
+       三格互相吃掉对方，用户就分不清自己总共发了几条了。 */
+    assert.ok(/LF\.store\.stats\(\)/.test(js), '统计数字不再是全局的 LF.store.stats()');
+    assert.ok(!/LF\.store\.stats\([^)]/.test(js),
+      'LF.store.stats() 被塞了参数（它只接受「当成谁」，不是筛选条件）');
+
+    /* 「这一档空着」（比如一条都没标记完成）和「你还没发过」是两回事：
+       后者才配那套大插画，前者在列表位置留一句话就够了 ——
+       否则会一边写着「全部发布 4」一边说「你还没有发布过信息」。 */
+    assert.ok(/id="recNone"/.test(html), '少了「这一档空着」的提示位');
+    assert.ok(/elRecNone\.hidden\s*=\s*!noneHere/.test(js), '#recNone 没跟着筛选结果开关');
+    assert.ok(/noneHere\s*=\s*hasAny\s*&&\s*!list\.length/.test(js),
+      '空档的判断不是「有信息、但这一档没有」，会和大插画空状态打架');
   });
 });
 
