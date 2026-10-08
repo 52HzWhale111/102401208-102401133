@@ -261,6 +261,9 @@
     // 地点是自由文本，按「区域关键词」做子串匹配，例如「图书馆」能命中「图书馆三楼 C 区自习室」
     if (q.place && q.place !== 'all' && String(item.place || '').indexOf(q.place) === -1) return false;
 
+    // 只看最近一段时间（广场页右上角那个下拉）
+    if (!withinRange(item, q.within, q.now)) return false;
+
     var keyword = trim(q.keyword).toLowerCase();
     if (keyword) {
       var haystack = [item.title, item.place, item.desc, categoryLabel(item.category)]
@@ -277,6 +280,28 @@
     return isNaN(t) ? 0 : t;
   }
 
+  /* 「只看最近多久」的几个档位。半年按 183 天、一年按 365 天算 ——
+     用天数而不是 setMonth()，是为了可预期：不会因为跨月天数不同而忽宽忽窄。 */
+  var WITHIN_DAYS = { '7d': 7, '30d': 30, '6m': 183, '1y': 365 };
+
+  /**
+   * 时间范围筛选：'7d' | '30d' | '6m' | '1y'；'all' 或不传 = 不限。
+   * 比较的是「丢失 / 拾到的时间」（和排序共用 timeOf），不是发布时间 ——
+   * 用户想知道的是「最近丢的东西」，不是「最近录入的东西」。
+   *
+   * now 是留给测试的注入口：不传就取当前时刻。测试里必须传，
+   * 否则「近 7 天」会跟着跑测试的那一天飘，今天绿明天红。
+   */
+  function withinRange(item, within, now) {
+    if (!within || within === 'all') return true;
+    var days = WITHIN_DAYS[within];
+    if (!days) return true;          // 认不出来的值一律当「不限」，别把列表筛成空的
+    var base = now ? new Date(now) : new Date();
+    var t = base.getTime();
+    if (isNaN(t)) t = new Date().getTime();
+    return timeOf(item) >= t - days * 86400000;
+  }
+
   /** 按时间排序，默认最新在前。返回新数组，不动入参。 */
   function sortByTime(items, dir) {
     var sign = dir === 'asc' ? 1 : -1;
@@ -288,10 +313,17 @@
     });
   }
 
-  /** 筛选 + 排序，页面列表直接用这个 */
+  /**
+   * 筛选 + 排序，页面列表直接用这个。
+   * query 上多认两个可选字段：
+   *   sort   —— 'desc'（默认，最新在前）/ 'asc'（最早在前）
+   *   within —— '7d' / '30d' / '6m' / '1y'，不传 = 不限时间
+   * 两个都不传时行为和以前完全一样，搜索页 / 引导页不受影响。
+   */
   function search(items, query) {
-    var hit = (items || []).filter(function (item) { return matchesQuery(item, query); });
-    return sortByTime(hit, 'desc');
+    var q = query || {};
+    var hit = (items || []).filter(function (item) { return matchesQuery(item, q); });
+    return sortByTime(hit, q.sort === 'asc' ? 'asc' : 'desc');
   }
 
   /* ---------------------------------------------------------------- 时间 */
@@ -405,6 +437,8 @@
     matchesQuery: matchesQuery,
     search: search,
     sortByTime: sortByTime,
+    withinRange: withinRange,
+    WITHIN_DAYS: WITHIN_DAYS,
 
     formatTime: formatTime,
     formatRelative: formatRelative,

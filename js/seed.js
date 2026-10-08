@@ -59,7 +59,12 @@
       author: OTHER
     },
     {
-      slug: 'item-04', kind: 'lost', category: 'card', hoursAgo: 30, postedAgo: 28,
+      /* 下面 4 条（04 / 05 / 06 / 09）故意写得很老：13 个月 / 8 个月 / 2 个月 / 20 天。
+         广场页右上角的「时间范围」筛选（仅近 7 天 / 近 30 天 / 近半年 / 近一年）如果
+         9 条全是「几小时前」，四档点下去条数一模一样，功能再对也看不出效果。
+         拉开之后四档依次是 5 / 6 / 7 / 8 条，最后一档「全部时间」才把 04 放出来。
+         首屏观感不受影响 —— 默认「最新发布在前」，这几条本来就在最下面。 */
+      slug: 'item-04', kind: 'lost', category: 'card', hoursAgo: 9600, postedAgo: 9598,
       title: '黑色校园卡（姓名：张*明）',
       place: '三食堂或西田径场',
       desc: '校园卡外壳是黑色的，卡面姓名张*明。可能就是吃饭或者跑完步之后掉的。'
@@ -68,7 +73,7 @@
       author: ME
     },
     {
-      slug: 'item-05', kind: 'found', category: 'card', hoursAgo: 34, postedAgo: 33,
+      slug: 'item-05', kind: 'found', category: 'card', hoursAgo: 5856, postedAgo: 5854,
       title: '蓝色卡套一卡通',
       place: '图书馆一楼服务台',
       desc: '在图书馆一楼电梯口捡到的一卡通，装在蓝色硅胶卡套里，卡套背面贴了一张动漫贴纸。'
@@ -77,7 +82,7 @@
       author: OTHER
     },
     {
-      slug: 'item-06', kind: 'lost', category: 'other', hoursAgo: 44, postedAgo: 42,
+      slug: 'item-06', kind: 'lost', category: 'other', hoursAgo: 1464, postedAgo: 1462,
       title: '粉色天堂晴雨伞',
       place: '艺术楼 B 座琴房',
       desc: '伞是淡粉色的，伞柄上有一个小小的猫咪挂饰。练习完钢琴走得急，'
@@ -105,7 +110,7 @@
       done: true                                            // 已归还，用来演示完成态
     },
     {
-      slug: 'item-09', kind: 'found', category: 'keychain', hoursAgo: 90, postedAgo: 88,
+      slug: 'item-09', kind: 'found', category: 'keychain', hoursAgo: 480, postedAgo: 478,
       title: '黑色车钥匙（带皮质钥匙扣）',
       place: '北田径场看台第一排',
       desc: '一把黑色车钥匙，挂着一个棕色皮质钥匙扣，上面还串了个小铃铛。'

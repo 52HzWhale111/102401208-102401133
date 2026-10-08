@@ -30,6 +30,79 @@
   .result-bar[hidden],
   .item-grid[hidden],
   .state-page[hidden] { display: none; }
+
+  /* ---- 排序 / 时间范围 下拉（计数条右上角）----
+     一个按钮管两件事：上面一组改「按什么顺序排」，下面一组改「只看最近多久」。
+     锚点靠 .sort-wrap 的 position:relative，菜单挂在它右下角。 */
+  .sort-wrap { position: relative; flex: none; }
+
+  .sort-btn {
+    display: flex; align-items: center; gap: 4px;
+    height: 28px; padding: 0 9px 0 11px;
+    font: inherit; font-size: 12px; font-weight: 600;
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, transform .12s;
+  }
+  .sort-btn:hover { background: #FAFAF9; }
+  .sort-btn:active { transform: scale(.95); }
+  .sort-btn[aria-expanded="true"] { border-color: var(--yellow); }
+  .sort-btn svg { width: 11px; height: 11px; color: var(--sub); transition: transform .18s; }
+  .sort-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
+  /* 排序或时间范围偏离默认值时点亮，否则「近7天」被切走了肉眼看不出来 */
+  .sort-btn.is-filtered {
+    color: var(--amber-800);
+    background: #FFFCF3;
+    border-color: var(--yellow-300);
+  }
+
+  .sort-menu {
+    position: absolute; right: 0; top: calc(100% + 6px);
+    z-index: 60;
+    min-width: 150px;
+    padding: 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(44, 44, 44, .13);
+    animation: sort-pop .14s ease-out;
+  }
+  /* .sort-menu 不是 flex/grid，浏览器默认的 [hidden] 就够用；
+     显式写一条是防着以后有人给它加 display:flex 时忘了这茬 */
+  .sort-menu[hidden] { display: none; }
+
+  @keyframes sort-pop {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .sort-group + .sort-group {
+    margin-top: 4px; padding-top: 6px;
+    border-top: 1px solid var(--line);
+  }
+  .sort-group-title {
+    display: block;
+    padding: 4px 9px 5px;
+    font-size: 11px; font-weight: 600; color: var(--sub);
+  }
+
+  .sort-item {
+    display: flex; align-items: center; gap: 6px;
+    width: 100%;
+    padding: 7px 9px;
+    font: inherit; font-size: 12.5px; color: var(--text);
+    text-align: left;
+    background: none; border: 0; border-radius: 9px;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .sort-item:hover { background: var(--page); }
+  .sort-item.is-on { font-weight: 600; color: var(--amber-800); background: var(--yellow-100); }
+  /* 勾子占一格宽：没选中的也占着，选中时这行文字才不会整体往右跳一下 */
+  .sort-tick { width: 12px; flex: none; font-size: 11px; line-height: 1; }
 </style>
 </head>
 
@@ -52,6 +125,57 @@
 
     <div class="result-bar" id="resultBar">
       <span class="result-count" id="resultCount"></span>
+
+      <!-- 右上角的下拉：一个按钮管「按什么顺序排」和「只看最近多久」两件事。
+           两组都是单选，选中项打勾；两项都写进地址栏，刷新或把链接发给同学都还原。 -->
+      <div class="sort-wrap">
+        <button class="sort-btn" id="sortBtn" type="button"
+                aria-haspopup="menu" aria-expanded="false" aria-controls="sortMenu">
+          <span id="sortLabel">最新</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </button>
+
+        <div class="sort-menu" id="sortMenu" role="menu" aria-label="排序与时间范围" hidden>
+          <div class="sort-group">
+            <span class="sort-group-title">时间排序</span>
+            <button class="sort-item" type="button" role="menuitemradio"
+                    data-sort="desc" aria-checked="false">
+              <span class="sort-tick" aria-hidden="true"></span>最新发布在前
+            </button>
+            <button class="sort-item" type="button" role="menuitemradio"
+                    data-sort="asc" aria-checked="false">
+              <span class="sort-tick" aria-hidden="true"></span>最早发布在前
+            </button>
+          </div>
+
+          <div class="sort-group">
+            <span class="sort-group-title">时间范围</span>
+            <button class="sort-item" type="button" role="menuitemradio"
+                    data-within="all" aria-checked="false">
+              <span class="sort-tick" aria-hidden="true"></span>全部时间
+            </button>
+            <button class="sort-item" type="button" role="menuitemradio"
+                    data-within="7d" aria-checked="false">
+              <span class="sort-tick" aria-hidden="true"></span>仅近 7 天
+            </button>
+            <button class="sort-item" type="button" role="menuitemradio"
+                    data-within="30d" aria-checked="false">
+              <span class="sort-tick" aria-hidden="true"></span>近 30 天
+            </button>
+            <button class="sort-item" type="button" role="menuitemradio"
+                    data-within="6m" aria-checked="false">
+              <span class="sort-tick" aria-hidden="true"></span>近半年
+            </button>
+            <button class="sort-item" type="button" role="menuitemradio"
+                    data-within="1y" aria-checked="false">
+              <span class="sort-tick" aria-hidden="true"></span>近一年
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 双列网格：和首页的单列卡片区分开 -->
@@ -60,7 +184,7 @@
     <div class="state-page" id="empty" hidden>
       <div class="state-icon" aria-hidden="true">🗂️</div>
       <h3 class="state-title">这里还没有相关信息</h3>
-      <p class="state-desc">换个类型看看，或者由你来发第一条。</p>
+      <p class="state-desc" id="emptyDesc">换个类型看看，或者由你来发第一条。</p>
       <div class="state-actions">
         <button class="btn btn-secondary" id="emptyAll" type="button">看全部信息</button>
         <a class="btn btn-primary" href="publish.html?kind=lost">去发布</a>
@@ -89,16 +213,40 @@
   var elCount = document.getElementById('resultCount');
   var elGrid  = document.getElementById('grid');
   var elEmpty = document.getElementById('empty');
+  var elEmptyDesc = document.getElementById('emptyDesc');
+  var elEmptyAll  = document.getElementById('emptyAll');
 
-  var KINDS = ['all', 'lost', 'found'];
+  var elSortBtn   = document.getElementById('sortBtn');
+  var elSortMenu  = document.getElementById('sortMenu');
+  var elSortLabel = document.getElementById('sortLabel');
 
-  /* 首页两个大入口直接带参跳过来，认不出来的值一律当「全部」 */
-  function readKindFromUrl() {
-    var kind = new URLSearchParams(location.search).get('kind');
-    return KINDS.indexOf(kind) >= 0 ? kind : 'all';
+  var KINDS   = ['all', 'lost', 'found'];
+  var SORTS   = ['desc', 'asc'];
+  var WITHINS = ['all', '7d', '30d', '6m', '1y'];
+
+  /* 按钮上显示的短标签。和 core.js 的 WITHIN_DAYS 是一套档位，
+     那边管筛，这边只管怎么念给人听。 */
+  var WITHIN_LABEL = {
+    'all': '', '7d': '近7天', '30d': '近30天', '6m': '近半年', '1y': '近一年'
+  };
+  /* 筛空了的时候，空状态要说得更具体一点，用口语的说法 */
+  var WITHIN_EMPTY = {
+    '7d': '最近 7 天', '30d': '最近 30 天', '6m': '最近半年', '1y': '最近一年'
+  };
+
+  /* 三个筛选条件都从地址栏读，认不出来的值一律退回默认。
+     默认 = 全部 / 最新在前 / 不限时间。 */
+  function readStateFromUrl() {
+    var p = new URLSearchParams(location.search);
+    var kind = p.get('kind'), sort = p.get('sort'), within = p.get('within');
+    return {
+      kind:   KINDS.indexOf(kind) >= 0     ? kind   : 'all',
+      sort:   SORTS.indexOf(sort) >= 0     ? sort   : 'desc',
+      within: WITHINS.indexOf(within) >= 0 ? within : 'all'
+    };
   }
 
-  var state = { kind: readKindFromUrl() };
+  var state = readStateFromUrl();
 
   function applyKind() {
     Array.prototype.forEach.call(elKind.querySelectorAll('.seg'), function (seg) {
@@ -108,28 +256,114 @@
     });
   }
 
+  /* 下拉按钮的文字 = 「时间范围 · 排序」。没筛时间时就只说排序，短一点。 */
+  function applySort() {
+    var withinTxt = WITHIN_LABEL[state.within];
+    elSortLabel.textContent = (withinTxt ? withinTxt + ' · ' : '')
+                            + (state.sort === 'asc' ? '最早' : '最新');
+
+    elSortBtn.classList.toggle('is-filtered', state.within !== 'all' || state.sort !== 'desc');
+
+    Array.prototype.forEach.call(elSortMenu.querySelectorAll('.sort-item'), function (btn) {
+      var on = btn.dataset.sort
+        ? btn.dataset.sort === state.sort
+        : btn.dataset.within === state.within;
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-checked', String(on));
+      btn.querySelector('.sort-tick').textContent = on ? '✓' : '';
+    });
+  }
+
   /* 把当前筛选写回地址栏，刷新后还停在同一个筛选上。
      file:// 下 Chrome 的 origin 是 null，可能拒绝改地址；
      失败了也不影响页面，所以吞掉异常。 */
   function syncUrl() {
-    var url = state.kind === 'all' ? location.pathname : '?kind=' + state.kind;
+    var params = [];
+    if (state.kind !== 'all')   params.push('kind=' + state.kind);
+    if (state.sort !== 'desc')  params.push('sort=' + state.sort);
+    if (state.within !== 'all') params.push('within=' + state.within);
+
+    var url = params.length ? '?' + params.join('&') : location.pathname;
     try { history.replaceState(null, '', url); } catch (e) { /* 忽略 */ }
   }
 
   function render() {
-    /* 排序和「返回副本」LF.search 都做了，这里直接用结果 */
-    var hit = LF.search(LF.store.all(), { kind: state.kind });
+    /* 排序和「返回副本」LF.search 都做了，这里直接用结果。
+       sort / within 一并交给它，页面自己不排也不筛。 */
+    var hit = LF.search(LF.store.all(), {
+      kind: state.kind, sort: state.sort, within: state.within
+    });
     var hasHit = hit.length > 0;
 
-    elBar.hidden   = !hasHit;
+    /* 列表空了也**要留着计数条**，前提是「空」是时间范围造成的 ——
+       不然那个下拉跟着一起被藏起来，人就只能退出页面才能把范围放宽。 */
+    elBar.hidden   = !hasHit && state.within === 'all';
     elGrid.hidden  = !hasHit;
     elEmpty.hidden = hasHit;
+    if (elBar.hidden) closeMenu(false);
 
     var label = state.kind === 'all' ? '全部信息' : LF.KINDS[state.kind] + '信息';
     elCount.textContent = label + ' · 共 ' + hit.length + ' 条';
 
+    if (!hasHit) {
+      var scope = WITHIN_EMPTY[state.within];
+      elEmptyDesc.textContent = scope
+        ? scope + '里没有相关信息，把时间范围放宽再看看。'
+        : '换个类型看看，或者由你来发第一条。';
+      /* 空是时间范围筛出来的，那给出口的按钮就该写「看全部时间」，
+         写「看全部信息」会让人以为问题出在类型上 */
+      elEmptyAll.textContent = scope ? '看全部时间' : '看全部信息';
+    }
+
     LF.card.renderList(elGrid, hit, { variant: 'stack' });
   }
+
+  /* ------------------------------------------------------ 下拉的开关 */
+
+  function openMenu() {
+    elSortMenu.hidden = false;
+    elSortBtn.setAttribute('aria-expanded', 'true');
+    var on = elSortMenu.querySelector('.sort-item.is-on') || elSortMenu.querySelector('.sort-item');
+    if (on) on.focus();
+  }
+
+  function closeMenu(returnFocus) {
+    if (elSortMenu.hidden) return;
+    elSortMenu.hidden = true;
+    elSortBtn.setAttribute('aria-expanded', 'false');
+    /* 选完把焦点还给按钮：用键盘的人不会一下子掉回页面开头 */
+    if (returnFocus) elSortBtn.focus();
+  }
+
+  elSortBtn.addEventListener('click', function () {
+    if (elSortMenu.hidden) openMenu(); else closeMenu(false);
+  });
+
+  elSortMenu.addEventListener('click', function (event) {
+    var item = event.target.closest('.sort-item');
+    if (!item) return;
+    if (item.dataset.sort) state.sort = item.dataset.sort;
+    else state.within = item.dataset.within;
+
+    applySort();
+    syncUrl();
+    render();
+    closeMenu(true);
+  });
+
+  /* 点菜单外面就收起来。.sort-wrap 里的点击要放过 ——
+     放不过的话，点按钮这一下会先展开、再被这里立刻关掉，看着像按钮失灵。 */
+  document.addEventListener('click', function (event) {
+    if (elSortMenu.hidden) return;
+    if (event.target.closest('.sort-wrap')) return;
+    closeMenu(false);
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') closeMenu(true);
+  });
+
+  /* ------------------------------------------------------------ 接线 */
 
   elKind.addEventListener('click', function (event) {
     var seg = event.target.closest('.seg');
@@ -140,14 +374,18 @@
     render();
   });
 
-  document.getElementById('emptyAll').addEventListener('click', function () {
+  elEmptyAll.addEventListener('click', function () {
+    /* 空状态可能是类型筛出来的，也可能是时间范围筛出来的，一起放开 */
     state.kind = 'all';
+    state.within = 'all';
     applyKind();
+    applySort();
     syncUrl();
     render();
   });
 
   applyKind();
+  applySort();
   render();
 })();
 </script>
