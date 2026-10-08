@@ -27,9 +27,12 @@ var ROOT = path.join(__dirname, '..');
 /* 我负责的五个页面 */
 var MY_PAGES = ['search.html', 'square.html', 'browse.html', 'detail.html', 'mine.html'];
 
-/* 全站页面：顶栏接线那几条需要对整个站成立，不只我这五页 */
+/* 全站页面：顶栏接线那几条需要对整个站成立，不只我这五页。
+   edit.html 是队友后加的，它自己有 edit.test.js 管业务；收进来是为了让
+   「back 页不引 side-menu」「脚本顺序」「[hidden] 兜底」这几条全站规矩也罩住它 ——
+   新页面最容易漏的正是这些不看不知道、看了才发现按钮点不动的接线。 */
 var ALL_PAGES = ['index.html', 'search.html', 'square.html', 'browse.html',
-                 'detail.html', 'mine.html', 'publish.html', 'publish-done.html'];
+                 'detail.html', 'mine.html', 'edit.html', 'publish.html', 'publish-done.html'];
 
 function read(file) {
   return fs.readFileSync(path.join(ROOT, file), 'utf8');
